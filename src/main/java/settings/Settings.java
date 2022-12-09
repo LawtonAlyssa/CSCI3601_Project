@@ -9,6 +9,7 @@ public class Settings {
     public final static String SERVER_COORD_IP_ADDR = "192.168.0.148";
     public final static int SERVER_COORD_PORT_NUM = 12345;
     public final static int SERVER_COORD_ID = 0;
+    public final static int SERVER_PROCESS_ID = 0;
     public final static int LOCAL_PORT_NUM = 12345;
     public final static int MAX_CLIENTS = 10;
 }

@@ -1,26 +1,26 @@
 package server;
 
 import process.Process;
+import process.ProcessCommType;
+import process.QueueManager;
 import settings.Settings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import message.Message;
-
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.concurrent.BlockingQueue;
 
 public class ServerConnectProcess extends Process{
     private static final Logger logger = LoggerFactory.getLogger(ServerConnectProcess.class);
     private ServerSocket serverSocket = null;
     private int machineCounter = 0;
-    private BlockingQueue<Message> serverInfosSend = null;
+    private QueueManager queueManager = null;
 
-    public ServerConnectProcess(ServerInfo serverInfo, BlockingQueue<Message> serverInfosSend) {
+    public ServerConnectProcess(ServerInfo serverInfo, QueueManager queueManager) {
         super(serverInfo);
-        this.serverInfosSend = serverInfosSend;
+        
+        this.queueManager = queueManager;
+
         createServerSocket();
     }
 
@@ -41,7 +41,8 @@ public class ServerConnectProcess extends Process{
             Socket connectionSocket = serverSocket.accept();
 
             machineCounter++;
-            HandleClientProcess hcp = new HandleClientProcess(getProcessInfo(), connectionSocket, machineCounter, serverInfosSend);
+            HandleClientProcess hcp = new HandleClientProcess(getServerInfo(), connectionSocket, machineCounter, queueManager);
+            hcp.addDestProcess(ProcessCommType.DEFAULT, getProcessInfo());
             hcp.start();
             logger.trace("Server successfully connected to client");
         } catch (IOException e) {

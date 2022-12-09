@@ -22,9 +22,36 @@ public class ProcessInfo {
         processIds.add(processId);
     }
 
+    @Override
+    public int hashCode() {
+        final int prime = 31;
+        int result = 1;
+        result = prime * result + processId;
+        return result;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj)
+            return true;
+        if (obj == null)
+            return false;
+        if (getClass() != obj.getClass())
+            return false;
+        ProcessInfo other = (ProcessInfo) obj;
+        if (processId != other.processId)
+            return false;
+        return true;
+    }
+
     public ProcessInfo(ServerInfo serverInfo) {
         this.serverInfo = serverInfo;
         generateProcessId();
+    }
+
+    public ProcessInfo(int processId) {
+        this.processId = processId;
+        processIds.add(processId);
     }
 
     public ProcessInfo() {

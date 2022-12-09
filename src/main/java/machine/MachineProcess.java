@@ -7,6 +7,7 @@ import message.MessageType;
 import message.ServerHandshake;
 import process.Process;
 import process.ProcessInfo;
+import process.QueueManager;
 import server.Server;
 import server.ServerInfo;
 import settings.Settings;
@@ -24,16 +25,18 @@ public class MachineProcess extends Process{
     private Server server = null;
     private Client coordClient = null;
     private ServerInfo coordServerInfo = null;
+    private QueueManager queueManager = null;
 
     public MachineProcess() {
-        super();
+        super(Settings.SERVER_PROCESS_ID);
 
         this.server = Server.startLocalServer(getProcessInfo());
         setServerInfo(this.server.getServerInfo());
+        this.queueManager = new QueueManager(server.getServerInfo());
         coordServerInfo = new ServerInfo(Settings.SERVER_COORD_IP_ADDR, Settings.SERVER_COORD_ID);
         
         try {
-            coordClient = new Client(new Socket(coordServerInfo.getIpAddress(), Settings.SERVER_COORD_PORT_NUM), getProcessInfo());
+            coordClient = new Client(getProcessInfo(), new Socket(coordServerInfo.getIpAddress(), Settings.SERVER_COORD_PORT_NUM), queueManager);
         } catch (UnknownHostException e) {
             logger.error("Cannot find host: " + coordServerInfo.getIpAddress(), e);
         }
@@ -51,7 +54,7 @@ public class MachineProcess extends Process{
     }
     
     public boolean receiveServerHandshake() {
-        Message msg = coordClient.receive();
+        Message msg = coordClient.receiveSocket();
         if (msg==null) return false;
         logger.debug("Received message with message type: " + msg.getMessageType());
         if (msg.getMessageType()==MessageType.SERVER_HANDSHAKE) {
@@ -65,9 +68,9 @@ public class MachineProcess extends Process{
     }
 
     public void sendClientHandshake() {
-        ProcessInfo dest = new ProcessInfo(coordServerInfo);
+        ProcessInfo dest = new ProcessInfo(coordServerInfo, Settings.SERVER_PROCESS_ID);
         MessageContent msg = new MessageContent(MessageType.CLIENT_HANDSHAKE);
-        coordClient.send(dest, msg);
+        coordClient.sendSocket(dest, msg);
         logger.info("Sent client handshake");
     }
     

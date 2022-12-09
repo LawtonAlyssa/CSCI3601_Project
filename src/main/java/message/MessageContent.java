@@ -30,7 +30,7 @@ public class MessageContent {
     public static String arrayListToString(String label, ArrayList<?> arrList) {
         StringBuilder str = new StringBuilder();
 
-        int len = arrList.size();
+        int len = (arrList==null)? 0 : arrList.size();
         str.append(String.format("%sCount:[%d]", label, len));
 
         for (int i = 0; i < len; i++) {

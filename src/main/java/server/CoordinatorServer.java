@@ -12,7 +12,7 @@ public class CoordinatorServer{
         logger.debug("Debug mode is on");
         logger.trace("Trace mode is on");
          
-        UpdateServerProcess usp = new UpdateServerProcess(Settings.SERVER_COORD_ID);
+        CoordinatorServerProcess usp = new CoordinatorServerProcess(Settings.SERVER_COORD_ID);
 
         usp.start();
         usp.joinProcess();
