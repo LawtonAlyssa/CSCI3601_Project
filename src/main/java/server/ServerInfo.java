@@ -1,5 +1,6 @@
 package server;
 
+import java.net.Socket;
 import java.util.HashMap;
 import message.Message;
 
@@ -12,9 +13,14 @@ public class ServerInfo {
         this.serverId = serverId;
     }
 
+    public static ServerInfo createServerInfoFromSocket(Socket socket, int serverId) {
+        return new ServerInfo(socket.getInetAddress().toString(), serverId);
+    }
+
     public String getIpAddress() {
         return ipAddress;
     }
+
     public int getServerId() {
         return serverId;
     }

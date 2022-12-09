@@ -1,4 +1,5 @@
 package client;
+
 import java.net.Socket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -9,6 +10,8 @@ public class Client extends Messenger{
     private static final Logger logger = LoggerFactory.getLogger(Client.class);
     
     public Client(Socket clientSocket, ProcessInfo processInfo) {
-        super(clientSocket, processInfo);
+        super(processInfo, clientSocket);
+        logger.trace("Created a client");
     }
+
 }

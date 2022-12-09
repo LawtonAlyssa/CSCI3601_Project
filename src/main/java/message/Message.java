@@ -48,6 +48,9 @@ public class Message {
 
         while(idx < msgStr.length()) {
             int endIdx = Message.getLabelEndIdx(msgStr, idx);
+            if (endIdx <= idx) {
+                logger.trace("Parsing msgStr: " + msgStr + " idx: " + idx + " endIdx: " + endIdx);
+            }
             String label = msgStr.substring(idx, endIdx);
             idx = endIdx + 1;
             endIdx = Message.getBodyEndIdx(msgStr, idx);

@@ -8,15 +8,15 @@ import java.util.concurrent.BlockingQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import process.Process;
-import server.ServerInfo;
+import process.ProcessInfo;
 
 public class ReceiveProcess extends Process{
     private static final Logger logger = LoggerFactory.getLogger(ReceiveProcess.class);
     private BufferedReader in;
     private BlockingQueue<Message> queue = null;
 
-    public ReceiveProcess(ServerInfo serverInfo, InputStream inputStream, BlockingQueue<Message> queue) {
-        super(serverInfo);
+    public ReceiveProcess(ProcessInfo parentProcessInfo, InputStream inputStream, BlockingQueue<Message> queue) {
+        super(parentProcessInfo, queue);
         this.in = new BufferedReader(new InputStreamReader(inputStream));
         this.queue = queue;
     }
@@ -24,7 +24,8 @@ public class ReceiveProcess extends Process{
     public void receive() {
         try {
             String line = in.readLine();
-            logger.debug("Received line: " + line);
+            // logger.debug("Received line: " + line);
+            if (line==null || line.length()==0) return;
             Message msg = Message.toMessage(line);
             logger.debug("Received message type: " + msg.getMessageType());
             queue.add(msg);

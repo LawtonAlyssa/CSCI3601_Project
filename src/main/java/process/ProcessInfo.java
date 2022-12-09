@@ -27,6 +27,14 @@ public class ProcessInfo {
         generateProcessId();
     }
 
+    public ProcessInfo() {
+        generateProcessId();
+    }
+
+    public void setServerInfo(ServerInfo serverInfo) {
+        this.serverInfo = serverInfo;
+    }
+
     private void generateProcessId() {
         int maxCount = 1000;
         do {

@@ -6,9 +6,9 @@ import criticalSection.CriticalSectionInfo;
 import server.ServerInfo;
 
 public class CriticalSectionRequest extends MessageContent{
-    private ServerInfo computerId;
-    private CriticalSectionInfo critSect;
-    private Clock clock;
+    private ServerInfo computerId = null;
+    private CriticalSectionInfo critSect = null;
+    private Clock clock = null;
 
     public CriticalSectionRequest(ServerInfo computerId, CriticalSectionInfo critSect, Clock clock) {
         super(MessageType.CS_REQUEST);
@@ -36,7 +36,6 @@ public class CriticalSectionRequest extends MessageContent{
         Clock clock = Clock.toMessage(hm.get("clock"));
         return new CriticalSectionRequest(computerId, critSect, clock);
     }
-
 
     @Override
     public String toString() {

@@ -4,8 +4,10 @@ import client.Client;
 import message.Message;
 import message.MessageContent;
 import message.MessageType;
+import message.ServerHandshake;
 import process.Process;
 import process.ProcessInfo;
+import server.Server;
 import server.ServerInfo;
 import settings.Settings;
 import org.slf4j.Logger;
@@ -19,11 +21,15 @@ import java.net.UnknownHostException;
  */
 public class MachineProcess extends Process{
     private static final Logger logger = LoggerFactory.getLogger(MachineProcess.class);
+    private Server server = null;
     private Client coordClient = null;
     private ServerInfo coordServerInfo = null;
 
-    public MachineProcess(ServerInfo serverInfo) {
-        super(serverInfo);
+    public MachineProcess() {
+        super();
+
+        this.server = Server.startLocalServer(getProcessInfo());
+        setServerInfo(this.server.getServerInfo());
         coordServerInfo = new ServerInfo(Settings.SERVER_COORD_IP_ADDR, Settings.SERVER_COORD_ID);
         
         try {
@@ -39,6 +45,9 @@ public class MachineProcess extends Process{
     @Override
     public void run() {
         while (!receiveServerHandshake()) {}
+        while (true) {
+            server.UpdateMachineConnections();
+        }
     }
     
     public boolean receiveServerHandshake() {
@@ -46,7 +55,9 @@ public class MachineProcess extends Process{
         if (msg==null) return false;
         logger.debug("Received message with message type: " + msg.getMessageType());
         if (msg.getMessageType()==MessageType.SERVER_HANDSHAKE) {
-            logger.info("Received handshake from Server");
+            ServerHandshake sh = (ServerHandshake)msg.getData();
+            logger.info("Received handshake from Server " + msg.getSource().getServerInfo().getServerId());
+            logger.info("Assigned server id:" + sh.getServerId());
             sendClientHandshake();
             return true;
         }
@@ -59,4 +70,5 @@ public class MachineProcess extends Process{
         coordClient.send(dest, msg);
         logger.info("Sent client handshake");
     }
+    
 }

@@ -4,17 +4,23 @@ import process.Process;
 import settings.Settings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import message.Message;
+
 import java.io.IOException;
 import java.net.ServerSocket;
-// import java.util.ArrayList;
+import java.net.Socket;
+import java.util.concurrent.BlockingQueue;
 
 public class ServerConnectProcess extends Process{
     private static final Logger logger = LoggerFactory.getLogger(ServerConnectProcess.class);
     private ServerSocket serverSocket = null;
-    // private ArrayList<ServerToClientConnection> clientConnections = new ArrayList<>();
-    
-    public ServerConnectProcess(ServerInfo serverInfo) {
+    private int machineCounter = 0;
+    private BlockingQueue<Message> serverInfosSend = null;
+
+    public ServerConnectProcess(ServerInfo serverInfo, BlockingQueue<Message> serverInfosSend) {
         super(serverInfo);
+        this.serverInfosSend = serverInfosSend;
         createServerSocket();
     }
 
@@ -32,9 +38,12 @@ public class ServerConnectProcess extends Process{
 
     public void connect() {
         try {
-            HandleClientProcess hcp = new HandleClientProcess(getServerInfo(), serverSocket.accept());
+            Socket connectionSocket = serverSocket.accept();
+
+            machineCounter++;
+            HandleClientProcess hcp = new HandleClientProcess(getProcessInfo(), connectionSocket, machineCounter, serverInfosSend);
             hcp.start();
-            // logger.info("Server successfully connected to client");
+            logger.trace("Server successfully connected to client");
         } catch (IOException e) {
             logger.error("Accept failed", e);
         }
@@ -44,6 +53,7 @@ public class ServerConnectProcess extends Process{
         for (int i = 0; i < Settings.MAX_CLIENTS; i++) {
             try {
                 this.serverSocket = new ServerSocket(Settings.LOCAL_PORT_NUM+i);
+                logger.trace("Found port number for server socket");
                 return;
             } catch (IOException e) {
                 // make new attempt at Socket
