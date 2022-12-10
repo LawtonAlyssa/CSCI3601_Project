@@ -8,26 +8,33 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import process.Process;
 import process.QueueManager;
-import server.ServerInfo;
 
 public class ReceiveProcess extends Process{
     private static final Logger logger = LoggerFactory.getLogger(ReceiveProcess.class);
     private BufferedReader in;
+    private Messenger messenger;
 
-    public ReceiveProcess(ServerInfo serverInfo, InputStream inputStream, QueueManager queueManager) {
-        super(serverInfo, queueManager);
+    public ReceiveProcess(QueueManager queue, InputStream inputStream, Messenger messenger) {
+        super(queue);
+
         this.in = new BufferedReader(new InputStreamReader(inputStream));
+        this.messenger = messenger;
     }
 
     private void receiveSocket() {
         try {
             String line = in.readLine();
-            // logger.debug("Received line: " + line);
+
             if (line==null || line.length()==0) return;
-            Message msg = Message.toMessage(line);
-            logger.debug("Received message type: " + msg.getMessageType());
+
+            logger.trace("Received: " + line);
+
+            ServerMessage msg = ServerMessage.toMessage(line);
+            msg.setMessenger(messenger);
+
+            logger.debug("Received " + msg.toLog());
+
             send(msg);
-            // queue.add(msg);
         } catch (IOException e) {
             logger.error("Failed to receive message", e);
         }

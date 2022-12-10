@@ -3,36 +3,28 @@ package process;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import message.Message;
-import server.ServerInfo;
+import message.MessageContent;
 
 public class QueueManager {
     private static final Logger logger = LoggerFactory.getLogger(QueueManager.class);
-    private BlockingQueue<Message> msgQueueToMgr = null;
-    private ConcurrentHashMap<ProcessInfo, QueuePair> msgQueuesFrMgr = new ConcurrentHashMap<>();
+    private BlockingQueue<Message> msgQueue = new LinkedBlockingQueue<>();
 
-    public QueueManager(ServerInfo serverInfo) {
-        this.msgQueueToMgr = new LinkedBlockingQueue<>();
-
-        QueueManagerProcess qmp = new QueueManagerProcess(serverInfo, msgQueueToMgr, msgQueuesFrMgr);
-        qmp.start();
-    }
-
-    public QueuePair addProcess(ProcessInfo process) {
-        if (msgQueuesFrMgr.contains(process)) {
-            return getQueuePair(process);
+    public void send(Message msg) {
+        try {
+            msgQueue.put(msg);
+        } catch (InterruptedException e) {
+            logger.error("Could not send message", e);
         }
-        BlockingQueue<Message> msgQueueFrMgr = new LinkedBlockingQueue<Message>();
-        QueuePair queuePair = new QueuePair(msgQueueToMgr, msgQueueFrMgr);
-        msgQueuesFrMgr.put(process, queuePair);
-        logger.debug("Added new process to QueueManager: " + process.getProcessId());
-        return queuePair;
     }
 
-    public QueuePair getQueuePair(ProcessInfo processInfo) {
-        return msgQueuesFrMgr.getOrDefault(processInfo, null);
+    public void send(MessageContent data) {
+        send(new Message(data));
+    }
+
+    public Message receive() {
+        return (msgQueue.isEmpty())? null : msgQueue.poll(); 
     }
 
 }

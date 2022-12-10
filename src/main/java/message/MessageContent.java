@@ -16,15 +16,19 @@ public class MessageContent {
     public static MessageContent toMessage(String msgStr) {
         HashMap<String, String> hm = Message.parseMessage(msgStr);
         String typeStr = hm.get("type");
-        logger.debug("Parsing Message Type: " + typeStr);
+
+        logger.trace("Parsing Message Type: " + typeStr);
+        
         MessageType type = MessageType.valueOf(typeStr);
-        if (type==MessageType.CS_REQUEST) {
-            return CriticalSectionRequest.toMessage(msgStr);
-        } else if (type==MessageType.SERVER_HANDSHAKE) {
-            return ServerHandshake.toMessage(msgStr);
+
+        switch (type) {
+            case CS_REQUEST:
+                return CriticalSectionRequest.toMessage(msgStr);
+            case CENTRAL_SERVER_HANDSHAKE:
+                return CentralServerHandshake.toMessage(msgStr);
+            default:
+                return new MessageContent(type);
         }
-        // logger.error("Could not find message type: " + type);
-        return new MessageContent(type);
     }
 
     public static String arrayListToString(String label, ArrayList<?> arrList) {

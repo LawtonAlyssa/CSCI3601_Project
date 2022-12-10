@@ -1,26 +1,22 @@
 package server;
 
 import process.Process;
-import process.ProcessCommType;
 import process.QueueManager;
 import settings.Settings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import message.ServerConnection;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 
-public class ServerConnectProcess extends Process{
-    private static final Logger logger = LoggerFactory.getLogger(ServerConnectProcess.class);
+public class ServerProcess extends Process{
+    private static final Logger logger = LoggerFactory.getLogger(ServerProcess.class);
     private ServerSocket serverSocket = null;
-    private int machineCounter = 0;
-    private QueueManager queueManager = null;
 
-    public ServerConnectProcess(ServerInfo serverInfo, QueueManager queueManager) {
-        super(serverInfo);
+    public ServerProcess(QueueManager queue) {
+        super(queue);
         
-        this.queueManager = queueManager;
-
         createServerSocket();
     }
 
@@ -40,11 +36,8 @@ public class ServerConnectProcess extends Process{
         try {
             Socket connectionSocket = serverSocket.accept();
 
-            machineCounter++;
-            HandleClientProcess hcp = new HandleClientProcess(getServerInfo(), connectionSocket, machineCounter, queueManager);
-            hcp.addDestProcess(ProcessCommType.DEFAULT, getProcessInfo());
-            hcp.start();
-            logger.trace("Server successfully connected to client");
+            send(new ServerConnection(connectionSocket));
+            logger.debug("Server successfully connected to client");
         } catch (IOException e) {
             logger.error("Accept failed", e);
         }

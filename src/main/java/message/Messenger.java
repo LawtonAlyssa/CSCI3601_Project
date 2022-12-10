@@ -2,22 +2,23 @@ package message;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import process.Entity;
-import process.ProcessCommType;
-import process.ProcessInfo;
+import server.ServerInfo;
 import process.QueueManager;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.Socket;
 
-public class Messenger extends Entity{
+public class Messenger{
     private static final Logger logger = LoggerFactory.getLogger(Messenger.class);
     private Socket messengerSocket = null;
     private PrintWriter out = null;
+    private ServerInfo sourceServerInfo = null;
+    private ServerInfo destServerInfo = null;
 
-    public Messenger(ProcessInfo processInfo, Socket messengerSocket, QueueManager queueManager) {
-        super(processInfo, queueManager);
+    public Messenger(QueueManager queue, Socket messengerSocket, ServerInfo sourceServerInfo, ServerInfo destServerInfo) {
         this.messengerSocket = messengerSocket;
+        this.sourceServerInfo = sourceServerInfo;
+        this.destServerInfo = destServerInfo;
 
         try {
             this.out = new PrintWriter(messengerSocket.getOutputStream());
@@ -26,27 +27,32 @@ public class Messenger extends Entity{
         }
 
         try {
-            ReceiveProcess rp = new ReceiveProcess(getServerInfo(), messengerSocket.getInputStream(), queueManager);
-            rp.addDestProcess(ProcessCommType.DEFAULT, processInfo);
+            ReceiveProcess rp = new ReceiveProcess(queue, messengerSocket.getInputStream(), this);
             rp.start();
         } catch (IOException e) {
             logger.error("Failed to get InputStream", e);
         }
     }
 
-    public void sendSocket(ProcessInfo source, ProcessInfo dest, MessageContent data) {
-        String msgStr = new Message(source, dest, data).toString();
-        logger.debug("Sent: " + msgStr);
+    public ServerInfo getSourceServerInfo() {
+        return sourceServerInfo;
+    }
+
+    public ServerInfo getDestServerInfo() {
+        return destServerInfo;
+    }
+
+    public void sendSocket(ServerMessage msg) {
+        String msgStr = msg.toString();
+        logger.debug("Sent " + msg.toLog());
+        logger.trace("Sent: " + msgStr);
+        
         out.println(msgStr);
         out.flush();
     }
 
-    public void sendSocket(ProcessInfo dest, MessageContent data) {
-        sendSocket(getProcessInfo(), dest, data);
-    }
-
-    public Message receiveSocket() {
-        return getQueuePair().receiveFrManager();
+    public void sendSocket(MessageContent data) {
+        sendSocket(new ServerMessage(sourceServerInfo, destServerInfo, data));
     }
 
     public void close() {

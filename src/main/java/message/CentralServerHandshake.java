@@ -4,17 +4,17 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import server.ServerInfo;
 
-public class ServerHandshake extends MessageContent{
+public class CentralServerHandshake extends MessageContent{
     private int serverId;
     private ArrayList<ServerInfo> activeClients = null;
 
-    public ServerHandshake(int serverId, ArrayList<ServerInfo> activeClients) {
-        super(MessageType.SERVER_HANDSHAKE);
+    public CentralServerHandshake(int serverId, ArrayList<ServerInfo> activeClients) {
+        super(MessageType.CENTRAL_SERVER_HANDSHAKE);
         this.serverId = serverId;
         this.activeClients = activeClients;
     }
     
-    public static ServerHandshake toMessage(String msgStr) {
+    public static CentralServerHandshake toMessage(String msgStr) {
         HashMap<String, String> hm = Message.parseMessage(msgStr);
         int serverId = Integer.parseInt(hm.get("serverId"));
         ArrayList<ServerInfo> activeClients = new ArrayList<>();
@@ -23,7 +23,7 @@ public class ServerHandshake extends MessageContent{
             activeClients.add(ServerInfo.toMessage(serverInfo));
         }
 
-        return new ServerHandshake(serverId, activeClients);
+        return new CentralServerHandshake(serverId, activeClients);
     }
 
     @Override
@@ -33,6 +33,10 @@ public class ServerHandshake extends MessageContent{
 
     public int getServerId() {
         return serverId;
+    }
+
+    public ArrayList<ServerInfo> getActiveClients() {
+        return activeClients;
     }
     
 }

@@ -6,15 +6,26 @@ import message.Message;
 
 public class ServerInfo {
     private String ipAddress;
-    private int serverId;
+    private int serverId = -1;
 
     public ServerInfo(String ipAddress, int serverId) {
         this.ipAddress = ipAddress;
         this.serverId = serverId;
     }
 
+    public ServerInfo(String ipAddress) {
+        this.ipAddress = ipAddress;
+    }
+
     public static ServerInfo createServerInfoFromSocket(Socket socket, int serverId) {
-        return new ServerInfo(socket.getInetAddress().toString(), serverId);
+        return new ServerInfo(
+            socket.getInetAddress().getHostAddress().toString(), 
+            serverId
+        );
+    }
+
+    public void setServerId(int serverId) {
+        this.serverId = serverId;
     }
 
     public String getIpAddress() {
@@ -36,4 +47,29 @@ public class ServerInfo {
     public String toString() {
         return String.format("ipAddress:[%s]serverId:[%d]", ipAddress, serverId);
     }
+
+    @Override
+    public int hashCode() {
+        final int prime = 31;
+        int result = 1;
+        result = prime * result + serverId;
+        return result;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj)
+            return true;
+        if (obj == null)
+            return false;
+        if (getClass() != obj.getClass())
+            return false;
+        ServerInfo other = (ServerInfo) obj;
+        if (serverId != other.serverId)
+            return false;
+        return true;
+    }
+
+
+    
 }

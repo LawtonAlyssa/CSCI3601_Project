@@ -2,7 +2,10 @@ package message;
 public enum MessageType {
     CS_REQUEST, 
     CS_RESPONSE,
+    CENTRAL_CLIENT_HANDSHAKE,
+    CENTRAL_SERVER_HANDSHAKE,
     CLIENT_HANDSHAKE,
     SERVER_HANDSHAKE,
-    CLIENT_INFO
+    CLIENT_INFO,
+    SERVER_CONN
 }

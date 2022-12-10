@@ -10,7 +10,7 @@ public class ClientInfo extends MessageContent{
         this.clientInfo = clientInfo;
     }
 
-    public static ServerHandshake toMessage(String msgStr) {
+    public static CentralServerHandshake toMessage(String msgStr) {
         return null;
     }
 

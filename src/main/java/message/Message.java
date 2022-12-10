@@ -1,28 +1,25 @@
 package message;
 
 import java.util.HashMap;
-import process.ProcessInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class Message {
     private static final Logger logger = LoggerFactory.getLogger(Message.class);
-    private ProcessInfo source;
-    private ProcessInfo dest;
     private MessageContent data;
+    private boolean isServerMessage = false;
     
-    public Message(ProcessInfo source, ProcessInfo dest, MessageContent data) {
-        this.source = source;
-        this.dest = dest;
+    public Message(MessageContent data) {
         this.data = data;
     }
 
-    public ProcessInfo getSource() {
-        return source;
+    protected Message(MessageContent data, boolean isServerMessage) {
+        this.data = data;
+        this.isServerMessage = isServerMessage;
     }
 
-    public ProcessInfo getDest() {
-        return dest;
+    public boolean isServerMessage() {
+        return isServerMessage;
     }
 
     public MessageContent getData() {
@@ -35,11 +32,9 @@ public class Message {
 
     public static Message toMessage(String msgStr) {
         HashMap<String, String> hm = Message.parseMessage(msgStr);
-        ProcessInfo source = ProcessInfo.toMessage(hm.get("source"));
-        ProcessInfo dest = ProcessInfo.toMessage(hm.get("dest"));
         MessageContent data = MessageContent.toMessage(hm.get("data"));
         
-        return new Message(source, dest, data);
+        return new Message(data);
     }
 
     public static HashMap<String, String> parseMessage(String msgStr) {
@@ -88,6 +83,11 @@ public class Message {
 
     @Override
     public String toString() {
-        return String.format("source:[%s]dest:[%s]data:[%s]", source, dest, data);
+        return String.format("data:[%s]", data);
     }
+
+    public String toLog() {
+        return String.format("Message | Type: %s | %s", getMessageType(), (isServerMessage()) ? "Server" : "Process");
+    }
+
 }
