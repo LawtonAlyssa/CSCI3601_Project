@@ -7,5 +7,6 @@ public enum MessageType {
     CLIENT_HANDSHAKE,
     SERVER_HANDSHAKE,
     CLIENT_INFO,
-    SERVER_CONN
+    SERVER_CONN,
+    USER_INPUT
 }

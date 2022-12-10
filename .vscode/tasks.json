@@ -11,6 +11,16 @@
 			"problemMatcher": [],
 			"label": "java (build): Build Workspace",
 			"detail": "$(tools) Build all the Java projects in workspace."
+		},
+		{
+			"type": "shell",
+			"label": "Run Central Server",
+			"command": "bash scripts/runCentralServer.sh"
+		},
+		{
+			"type": "shell",
+			"label": "Run Machine",
+			"command": "bash scripts/runMachine.sh"
 		}
 	]
 }

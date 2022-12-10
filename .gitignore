@@ -1,2 +1,4 @@
 target/
 *.class
+logs/
+home_dirs/

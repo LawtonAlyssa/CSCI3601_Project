@@ -15,6 +15,7 @@ import message.ServerMessage;
 import server.ServerInfo;
 import server.ServerProcess;
 import settings.Settings;
+import userInput.UserInputProcess;
 
 public class Entity {
     private static final Logger logger = LoggerFactory.getLogger(Entity.class);
@@ -25,6 +26,7 @@ public class Entity {
     private ArrayList<Messenger> servers = new ArrayList<>();
     private File parentHomeDir = new File(Settings.PARENT_HOME_DIR);
     private File homeDir = null;
+    private UserInputProcess userInput = null;
 
     public Entity() {
         createParentHomeDir();
@@ -41,13 +43,21 @@ public class Entity {
         
         this.clock = (Settings.CLOCK_TYPE == ClockType.LAMPORT) ? new Lamport() : null;
 
-        startServerConnectProcess(queue);
+        startServerProcess();
+        startUserInputProcess();
     }
 
-    public void startServerConnectProcess(QueueManager queue) {
+    public void startServerProcess() {
         ServerProcess sp = new ServerProcess(queue);
         sp.start();
         logger.trace("Server is listening");
+        System.out.print("                                          \r>");
+    }
+
+    public void startUserInputProcess() {
+        UserInputProcess uip = new UserInputProcess(queue);
+        uip.start();
+        logger.trace("Keyboard is listening");
     }
 
     public void setServerId(int serverId) {

@@ -4,6 +4,8 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.SocketException;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import process.Process;
@@ -35,7 +37,11 @@ public class ReceiveProcess extends Process{
             logger.debug("Received " + msg.toLog());
 
             send(msg);
-        } catch (IOException e) {
+        } catch (SocketException e) {
+            logger.error("Server Terminated", e);
+            System.exit(1);
+        }
+        catch (IOException e) {
             logger.error("Failed to receive message", e);
         }
     }
