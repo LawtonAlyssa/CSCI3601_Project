@@ -8,6 +8,7 @@ import java.util.Queue;
 import criticalSection.file.FileInfo;
 import criticalSection.file.FileRequest;
 import criticalSection.file.FileSemaphore;
+import criticalSection.file.FileWriteInfo;
 import message.CriticalSectionRequest;
 
 public class CentralizedLockManager {
@@ -20,20 +21,22 @@ public class CentralizedLockManager {
     }
 
     public void handleRequest() {
-        if (requestQueue.isEmpty()) {
-            return;
-        }
+        if (requestQueue.isEmpty()) return;
+
         CriticalSectionRequest csRequest = requestQueue.poll();
-        if (csRequest.getCritSect() instanceof FileRequest) {
+
+        CriticalSectionType csRequestType = csRequest.getCritSectType();
+
+        if (csRequestType==CriticalSectionType.FILE) {
             handleFileRequest((FileRequest)csRequest.getCritSect());
         } else {
-            logger.warn("Request type not found");
+            logger.warn("Request type not found: " + csRequestType);
         }
     }
 
-    private void handleFileRequest(FileRequest fileRequest) {
+    private FileWriteInfo handleFileRequest(FileRequest fileRequest) {
         FileInfo fileInfo = fileRequest.getFileInfo();
-        RequestType requestType= fileRequest.getRequestType();
+        RequestType requestType = fileRequest.getRequestType();
 
         if (!semaphoreMap.containsKey(fileInfo.getFilePath())) {
             semaphoreMap.put(fileInfo.getFilePath(), new FileSemaphore(fileInfo));    
@@ -45,19 +48,19 @@ public class CentralizedLockManager {
             FileSemaphore fileSemaphore = (FileSemaphore)semaphoreVal;
             switch (requestType) {
                 case READ:
-                    fileSemaphore.read();
-                    break;
+                    return new FileWriteInfo(fileInfo.getFilePath(), fileSemaphore.read());
                 case REQUEST_WRITE:   
                     fileSemaphore.requestWrite();
-                    break;
                 case WRITE:    
                     fileSemaphore.write(fileInfo.getFileContent());
-                    break;
                 default:
                     break;
             }
         } else {
             logger.error("Semaphore requested is not a file");
         }
+
+        return null;
     }
+    
 }

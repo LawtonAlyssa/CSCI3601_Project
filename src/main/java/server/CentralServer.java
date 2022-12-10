@@ -1,8 +1,10 @@
 package server;
 
+import java.io.File;
 import java.net.Socket;
-
+import java.util.HashMap;
 import message.CentralServerHandshake;
+import message.CriticalSectionRequest;
 import message.Message;
 import message.Messenger;
 import message.ServerMessage;
@@ -11,9 +13,14 @@ import message.ServerConnection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import criticalSection.CentralizedLockManager;
+import criticalSection.file.FileInfo;
+
 public class CentralServer extends Entity{
     private static final Logger logger = LoggerFactory.getLogger(CentralServer.class);
     private int machineCount = 0;
+    private HashMap<ServerInfo, FileInfo> fileInfos = new HashMap<>();
+    private CentralizedLockManager centLockManager = new CentralizedLockManager();
 
     public CentralServer() {
         setServerId(getCentralServerInfo().getServerId());
@@ -25,21 +32,13 @@ public class CentralServer extends Entity{
             case CENTRAL_CLIENT_HANDSHAKE:
                 logger.info("Confirmed central handshake from Client " + msg.getSource().getServerId());
                 break;
+            case CS_REQUEST:
+                CriticalSectionRequest critSectRequest = (CriticalSectionRequest)msg.getData();
+                centLockManager.addCriticalSectionRequest(critSectRequest);
+                break;
             default:
                 break;
         }
-        // if (msg.getMessageType()==MessageType.SERVER_HANDSHAKE) {
-        //     CentralServerHandshake sh = (CentralServerHandshake)msg.getData();
-        //     logger.info("Received handshake from Server " + msg.getSource().getServerId());
-        //     logger.info("Assigned server id:" + sh.getServerId());
-        //     setServerId(sh.getServerId());
-
-        //     ArrayList<ServerInfo> clients = sh.getActiveClients();
-        //     setActiveClients(clients);
-        //     logger.info("Current number of active clients: " + getActiveClients().size());
-            
-        //     sendClientHandshake();
-        // }
     }
 
     public void handleProcessMessage(Message msg) {
@@ -68,4 +67,15 @@ public class CentralServer extends Entity{
                 break;
         }
     }
+
+    @Override
+    public void createHomeDir() {
+        super.createHomeDir();
+        File homeDir = getHomeDir();
+
+        if (!homeDir.exists()) {
+            homeDir.mkdirs();
+        }
+    }
+
 }

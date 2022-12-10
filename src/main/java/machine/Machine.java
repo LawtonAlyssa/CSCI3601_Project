@@ -12,6 +12,8 @@ import server.ServerInfo;
 import settings.Settings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.File;
 import java.io.IOException;
 import java.net.Socket;
 import java.net.UnknownHostException;
@@ -51,8 +53,9 @@ public class Machine extends Entity{
                 // logger.info("Sent client handshake to client: " + msg.getMessenger());
                 break;
             case CLIENT_HANDSHAKE:
+                ClientHandshake clientHandshake = (ClientHandshake)msg.getData();
                 Messenger messenger = msg.getMessenger();
-                int sourceServerId = msg.getSource().getServerId();
+                int sourceServerId = clientHandshake.getServerId();
 
                 messenger.getDestServerInfo().setServerId(sourceServerId);
                 logger.debug("Assigned client to id: " + sourceServerId);
@@ -147,5 +150,16 @@ public class Machine extends Entity{
         }
     }
 
+    @Override
+    public void createHomeDir() {
+        super.createHomeDir();
+        File homeDir = getHomeDir();
+
+        if (homeDir.exists()) {
+            homeDir.delete();
+            logger.info("Deleted home directory: " + homeDir.getPath());
+        }
+        homeDir.mkdirs();
+    }
     
 }

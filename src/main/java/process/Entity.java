@@ -1,8 +1,7 @@
 package process;
 
-import java.io.IOException;
+import java.io.File;
 import java.net.InetAddress;
-import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import org.slf4j.Logger;
@@ -24,9 +23,12 @@ public class Entity {
     private QueueManager queue = new QueueManager();
     private Clock clock = null;
     private ArrayList<Messenger> servers = new ArrayList<>();
-    private int machineCount = 0;
+    private File parentHomeDir = new File(Settings.PARENT_HOME_DIR);
+    private File homeDir = null;
 
     public Entity() {
+        createParentHomeDir();
+
         try {
             this.serverInfo = new ServerInfo(InetAddress.getLocalHost().getHostAddress());
             logger.debug("Local IP Address: " + serverInfo.getIpAddress());
@@ -48,6 +50,16 @@ public class Entity {
         logger.trace("Server is listening");
     }
 
+    public void setServerId(int serverId) {
+        serverInfo.setServerId(serverId);
+
+        createHomeDir();
+    }
+
+    public void createHomeDir() {
+        setHomeDir(new File(getParentHomeDir(), String.format("home_%d/aos", getServerInfo().getServerId())));
+    }
+
     public ServerInfo getServerInfo() {
         return serverInfo;
     }
@@ -60,12 +72,27 @@ public class Entity {
         return queue;
     }
 
-    public void setServerId(int serverId) {
-        serverInfo.setServerId(serverId);
+    public File getParentHomeDir() {
+        return parentHomeDir;
     }
 
     public Clock getClock() {
         return clock;
+    }
+
+    public File getHomeDir() {
+        return homeDir;
+    }
+
+    public void setHomeDir(File homeDir) {
+        this.homeDir = homeDir;
+    }
+
+    public void createParentHomeDir() {
+        if (!parentHomeDir.exists()) {
+            parentHomeDir.mkdirs();
+            logger.info("Created parent home directory");
+        }
     }
 
     public void handleServerMessage(ServerMessage msg) {

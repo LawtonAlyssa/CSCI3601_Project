@@ -3,6 +3,7 @@ package message;
 import java.util.HashMap;
 import clock.Clock;
 import criticalSection.CriticalSectionInfo;
+import criticalSection.CriticalSectionType;
 import server.ServerInfo;
 
 public class CriticalSectionRequest extends MessageContent{
@@ -23,6 +24,10 @@ public class CriticalSectionRequest extends MessageContent{
 
     public CriticalSectionInfo getCritSect() {
         return critSect;
+    }
+
+    public CriticalSectionType getCritSectType() {
+        return critSect.getCritSectType();
     }
 
     public Clock getClock() {

@@ -26,6 +26,8 @@ public class MessageContent {
                 return CriticalSectionRequest.toMessage(msgStr);
             case CENTRAL_SERVER_HANDSHAKE:
                 return CentralServerHandshake.toMessage(msgStr);
+            case CLIENT_HANDSHAKE:
+                return ClientHandshake.toMessage(msgStr);
             default:
                 return new MessageContent(type);
         }
