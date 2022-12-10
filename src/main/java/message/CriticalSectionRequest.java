@@ -7,19 +7,19 @@ import criticalSection.CriticalSectionType;
 import server.ServerInfo;
 
 public class CriticalSectionRequest extends MessageContent{
-    private ServerInfo computerId = null;
+    private ServerInfo serverInfo = null;
     private CriticalSectionInfo critSect = null;
     private Clock clock = null;
 
-    public CriticalSectionRequest(ServerInfo computerId, CriticalSectionInfo critSect, Clock clock) {
+    public CriticalSectionRequest(ServerInfo serverInfo, CriticalSectionInfo critSect, Clock clock) {
         super(MessageType.CS_REQUEST);
-        this.computerId = computerId;
+        this.serverInfo = serverInfo;
         this.critSect = critSect;
         this.clock = clock;
     }
 
-    public ServerInfo getComputerId() {
-        return computerId;
+    public ServerInfo getServerInfo() {
+        return serverInfo;
     }
 
     public CriticalSectionInfo getCritSect() {
@@ -44,6 +44,6 @@ public class CriticalSectionRequest extends MessageContent{
 
     @Override
     public String toString() {
-        return String.format("%scomputerId:[%s]critSect:[%s]clock:[%s]", super.toString(), computerId, critSect, clock);
+        return String.format("%scomputerId:[%s]critSect:[%s]clock:[%s]", super.toString(), serverInfo, critSect, clock);
     }
 }

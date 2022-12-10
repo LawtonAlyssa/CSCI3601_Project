@@ -10,8 +10,10 @@ public class MachineMain {
         logger.info("Hello World");
         logger.debug("Debug mode is on");
         logger.trace("Trace mode is on");
-        
+                
         new Machine().run();
+        System.exit(0);
+        
     }
     
 }

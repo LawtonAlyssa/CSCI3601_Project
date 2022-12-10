@@ -12,9 +12,11 @@ import clock.Lamport;
 import message.Message;
 import message.Messenger;
 import message.ServerMessage;
+import message.UserMessage;
 import server.ServerInfo;
 import server.ServerProcess;
 import settings.Settings;
+import userInput.Editor;
 import userInput.UserInputProcess;
 
 public class Entity {
@@ -27,6 +29,7 @@ public class Entity {
     private File parentHomeDir = new File(Settings.PARENT_HOME_DIR);
     private File homeDir = null;
     private UserInputProcess userInput = null;
+    private Editor editor = new Editor();
 
     public Entity() {
         createParentHomeDir();
@@ -105,20 +108,55 @@ public class Entity {
         }
     }
 
-    public void handleServerMessage(ServerMessage msg) {
+    public boolean handleServerMessage(ServerMessage msg) {
         switch (msg.getMessageType()) {
             // case :
             //     break;
             default:
                 break;
         }
+
+        return false;
     }
 
-    public void handleProcessMessage(Message msg) {
+    public boolean handleProcessMessage(Message msg) {
         switch (msg.getMessageType()) {
+            case USER_INPUT:
+                // boolean result = handleUserInput(((UserMessage)msg.getData()).getUserInput().split(" "));
+                // logger.debug("handleUserInput result=" + result);
+                // return result;
+                String[] input = ((UserMessage)msg.getData()).getUserInput().split(" ");
+                input[0] = input[0].toLowerCase();
+                if (editor.isActive()) {
+                    return editor.handleUserInput(input);
+                }
+                return handleUserInput(input);
             default:
                 break;
         }
+
+        return false;
+    }
+
+    public boolean handleUserInput(String[] tokenStr) {
+        switch (tokenStr[0]) {
+            case "exit":
+                logger.info("User terminated Server");
+                return true;
+            case "edit":
+                if (tokenStr.length == 2) {
+                    logger.info("User requested to write to file: " + tokenStr[1]);
+                    editor.setActive(true);
+                    editor.setFile(new File(homeDir, tokenStr[1]));
+                    editor.dump();
+                } else {
+                    logger.warn("Invalid number of arguments for edit");
+                }
+            default:
+                break;
+        }
+
+        return false;
     }
 
     public ArrayList<ServerInfo> getServers() {
@@ -134,21 +172,30 @@ public class Entity {
         servers.add(messenger);
     }
 
-    public void receive() {
+    public boolean receive() {
         Message msg = getQueue().receive();
 
-        if (msg==null) return;
+        if (msg==null) return false;
 
         logger.debug("Queue Received " + msg.toLog());
         
-        if (msg.isServerMessage()) handleServerMessage((ServerMessage)msg);
-        else handleProcessMessage(msg);
+        if (msg.isServerMessage()) return handleServerMessage((ServerMessage)msg);
+        // boolean result = handleProcessMessage(msg);
+        // logger.debug("receive() result=" + result);
+        // return result;
+        return handleProcessMessage(msg);
+    }
+
+    public boolean update() {
+        return false;
     }
 
     public void run() {
         while (true) {
-            receive();
+            if (receive()) break;
+            if (update()) break;
         }
+        logger.debug("Terminating...");
     }
     
 }

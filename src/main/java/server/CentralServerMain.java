@@ -12,6 +12,7 @@ public class CentralServerMain{
         logger.trace("Trace mode is on");
          
         new CentralServer().run();
+        System.exit(0);
     }
 
 }

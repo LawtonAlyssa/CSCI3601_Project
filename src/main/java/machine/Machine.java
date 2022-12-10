@@ -25,8 +25,8 @@ public class Machine extends Entity{
     private Messenger centralClient = createActiveClient(getCentralServerInfo());
     private ArrayList<Messenger> clients = new ArrayList<>();
 
-    public void handleServerMessage(ServerMessage msg) {
-        super.handleServerMessage(msg);
+    public boolean handleServerMessage(ServerMessage msg) {
+        if (super.handleServerMessage(msg)) return true;
         switch (msg.getMessageType()) {
             case CENTRAL_SERVER_HANDSHAKE:
                 CentralServerHandshake sh = (CentralServerHandshake)msg.getData();
@@ -63,6 +63,8 @@ public class Machine extends Entity{
             default:
                 break;
         }
+
+        return false;
     }
 
     public void sendCentralClientHandshake() {
@@ -71,8 +73,8 @@ public class Machine extends Entity{
         logger.info("Sent central client handshake");
     }
 
-    public void handleProcessMessage(Message msg) {
-        super.handleProcessMessage(msg);
+    public boolean handleProcessMessage(Message msg) {
+        if (super.handleProcessMessage(msg)) return true;
         
         switch (msg.getMessageType()) {
             case SERVER_CONN:
@@ -97,6 +99,19 @@ public class Machine extends Entity{
             default:
                 break;
         }
+
+        return false;
+    }
+
+    public boolean handleUserInput(String[] tokenStr) {
+        if (super.handleUserInput(tokenStr)) return true;
+        
+        switch (tokenStr[0]) {
+            default:
+                break;
+        }
+
+        return false;
     }
 
     public Messenger getActiveClient(ServerInfo serverInfo) {

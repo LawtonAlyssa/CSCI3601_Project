@@ -84,10 +84,15 @@ public class FileSemaphore extends BaseSemaphore{
 
     public void writingToFile(FileContent fc) {
         PrintWriter pw = null;
+
+        file.getParentFile().mkdirs();
+        String content = (fc==null) ? "" : fc.getContent();
+        logger.info("Writing to file: " + file.getPath() + " w/ " + content.length() + " characters");
+        
         try {
             pw = new PrintWriter(file);
 
-            pw.println(fc.getContent());
+            pw.println(content);
         } catch (FileNotFoundException e) {
             logger.error("Could not find file: " + file.getName(), e);
         } finally {
