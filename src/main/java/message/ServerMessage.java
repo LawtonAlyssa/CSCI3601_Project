@@ -42,6 +42,10 @@ public class ServerMessage extends Message{
         return new ServerMessage(source, dest, data);
     }
 
+    public void reply(MessageContent msg) {
+        getMessenger().sendSocket(new ServerMessage(dest, source, msg));
+    }
+
     @Override
     public String toString() {
         return String.format("source:[%s]dest:[%s]%s", source, dest, super.toString());

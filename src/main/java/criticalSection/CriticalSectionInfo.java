@@ -18,6 +18,10 @@ public class CriticalSectionInfo {
         return critSectType;
     }
 
+    public void setCritSectType(CriticalSectionType critSectType) {
+        this.critSectType = critSectType;
+    }
+
     public static CriticalSectionInfo toMessage(String msgStr) {
         HashMap<String, String> hm = Message.parseMessage(msgStr);
         String typeStr = hm.get("critSectType");

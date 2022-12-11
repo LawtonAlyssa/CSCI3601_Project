@@ -6,24 +6,43 @@ import message.MessageType;
 import message.Messenger;
 import message.CentralServerHandshake;
 import message.ClientHandshake;
+import message.CriticalSectionRequest;
+import message.CriticalSectionResponse;
 import message.ServerMessage;
 import process.Entity;
 import server.ServerInfo;
 import settings.Settings;
+import userInput.Editor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
+import criticalSection.CriticalSectionProgress;
+import criticalSection.CriticalSectionType;
+import criticalSection.RequestType;
+import criticalSection.file.FileInfo;
+import criticalSection.file.FileRequest;
+import criticalSection.file.FileContent;
+import criticalSection.file.FileContentInfo;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.Queue;
 import message.ServerConnection;
 
 public class Machine extends Entity{
     private static final Logger logger = LoggerFactory.getLogger(Machine.class);
     private Messenger centralClient = createActiveClient(getCentralServerInfo());
     private ArrayList<Messenger> clients = new ArrayList<>();
+    private HashMap<String, CriticalSectionProgress> pendingCSReqs = new HashMap<>();
+    private HashMap<String, Queue<ServerMessage>> otherCSReqs = new HashMap<>();
+    private Editor editor = null;
+    private long readTimer = 0;
+    private long writeTimer = 0;
 
     public boolean handleServerMessage(ServerMessage msg) {
         if (super.handleServerMessage(msg)) return true;
@@ -40,7 +59,8 @@ public class Machine extends Entity{
                 setActiveClients(activeClients);
                 logger.info("Current number of active clients: " + clients.size());
                 
-                sendCentralClientHandshake();
+                msg.reply(new MessageContent(MessageType.CENTRAL_CLIENT_HANDSHAKE));
+                logger.info("Sent central client handshake");
 
                 break;
             case SERVER_HANDSHAKE:
@@ -49,16 +69,129 @@ public class Machine extends Entity{
                 
                 ClientHandshake ch = new ClientHandshake(getServerInfo().getServerId());
                 logger.debug("Server Destination Messenger: " + msg.getMessenger().getDestServerInfo().getServerId());
-                msg.getMessenger().sendSocket(ch);
+                msg.reply(ch);
                 // logger.info("Sent client handshake to client: " + msg.getMessenger());
                 break;
             case CLIENT_HANDSHAKE:
                 ClientHandshake clientHandshake = (ClientHandshake)msg.getData();
-                Messenger messenger = msg.getMessenger();
                 int sourceServerId = clientHandshake.getServerId();
 
-                messenger.getDestServerInfo().setServerId(sourceServerId);
+                // clients.add();
+                ServerInfo serverInfo = msg.getDest();
+                
+                serverInfo.setServerId(sourceServerId);
                 logger.debug("Assigned client to id: " + sourceServerId);
+                
+                addActiveClient(serverInfo);
+                logger.debug("From client handshake, added client: " + sourceServerId);
+                break;
+            case CS_REQUEST:
+                CriticalSectionRequest request = (CriticalSectionRequest)msg.getData();
+                logger.info("Received critical section with type: " + request.getCritSectType());
+
+                if (request.getCritSectType()==CriticalSectionType.FILE) {
+                    if (distributedMutualExclusion(request)) {
+                        msg.reply(
+                            new CriticalSectionResponse(
+                                MessageType.CS_RESPONSE, 
+                                ((FileRequest)request.getCritSect()).getFileInfo()
+                            )
+                        );
+                    } else {
+                        FileInfo fileInfo = ((FileRequest)request.getCritSect()).getFileInfo();
+                        if (!otherCSReqs.containsKey(fileInfo.getFilePath())) {
+                            otherCSReqs.put(fileInfo.getFilePath(), new LinkedList<ServerMessage>());
+                        } 
+                        otherCSReqs.get(fileInfo.getFilePath()).add(msg);
+                    }
+                }
+
+                getClock().receiveUpdate(request.getClock());
+                break;
+            case CS_RESPONSE:
+                logger.info("Received critical section response");
+                CriticalSectionResponse response = (CriticalSectionResponse)msg.getData();
+                CriticalSectionProgress progress = pendingCSReqs.get(response.getFileInfo().getFilePath());
+
+                if (progress.addResponse()) {
+                    
+                    requestApproved(progress);
+                    
+                }
+                break;
+            case CS_EXIT:
+                logger.info("Received critical section response from server notifying exit and unlocking file");
+                CriticalSectionResponse exitResp = (CriticalSectionResponse)msg.getData();
+                FileInfo fileInfo = exitResp.getFileInfo();
+
+                logger.debug("pendingCSReqs contains: " + pendingCSReqs.containsKey(fileInfo.getFilePath()));
+
+                CriticalSectionProgress exitProgress = pendingCSReqs.get(fileInfo.getFilePath());
+                logger.debug("Terminating critical section progress for: '" + fileInfo.getFilePath() + "'");
+
+                if (exitProgress == null) {
+                    logger.warn("Progress is null");
+                }
+
+                RequestType requestType = exitProgress.getRequestType();
+
+                logger.debug("Request type: " + requestType);
+
+                if (requestType == RequestType.READ) {
+                    readTimer += System.nanoTime();
+                } else {
+                    writeTimer += System.nanoTime();
+                }
+
+                if (requestType!=RequestType.REQUEST_WRITE) {
+                    pendingCSReqs.remove(fileInfo.getFilePath());
+                    logger.debug("Removing progress from pendingCSReqs HashMap");
+
+                    if (otherCSReqs.containsKey(fileInfo.getFilePath())) {
+                        Queue<ServerMessage> q = otherCSReqs.get(fileInfo.getFilePath());
+
+                        logger.info("Sent out " + q.size() + " 'OK' messages to critical section request(s)");
+                        
+                        while (!q.isEmpty()) {
+                            ServerMessage serverMessage = q.poll();
+
+                            logger.debug("Sent 'OK' to: " + serverMessage.getSource().getServerId());
+                            serverMessage.reply(new CriticalSectionResponse(MessageType.CS_RESPONSE, exitResp.getFileInfo()));
+                        }
+                    }
+                }
+                
+                if (requestType!=RequestType.WRITE) { // storing file locally
+                    FileContentInfo fcInfo = ((FileContentInfo)fileInfo);
+                    FileContent fc = fcInfo.getFileContent();
+
+                    if (!fc.isFileExists()) {
+                        System.out.println("File does not exist");
+                    } else {
+                        File file = new File(getHomeDir(), fcInfo.getFilePath());
+                        file.getParentFile().mkdirs();
+
+                        if (requestType==RequestType.READ) {
+                            System.out.println(fc.getContent());
+                        }
+                        
+                        try {
+                            PrintWriter pw = new PrintWriter(file);
+                            pw.write(fc.getContent());
+                            pw.close();
+
+                            logger.info("Writing to local file to read: " + file.getPath() + " with size: " + file.length() + " bytes");
+                        } catch (FileNotFoundException e) {
+                            logger.error("Could not create file", e);
+                        }
+                    }
+                    
+                    if (requestType==RequestType.REQUEST_WRITE) {
+                        activateEditor(fcInfo.getFilePath());
+                    }
+                }
+
+                
                 break;
             default:
                 break;
@@ -67,10 +200,81 @@ public class Machine extends Entity{
         return false;
     }
 
-    public void sendCentralClientHandshake() {
-        MessageContent msg = new MessageContent(MessageType.CENTRAL_CLIENT_HANDSHAKE);
-        centralClient.sendSocket(msg);
-        logger.info("Sent central client handshake");
+    public void setHomeDir(File homeDir) {
+        super.setHomeDir(homeDir);
+        editor = new Editor(homeDir);
+    }
+
+    public void requestApproved(CriticalSectionProgress progress) {
+        if (progress.getRequestType()==RequestType.READ) {
+            progress.setWriteLocked(true);
+        } else {
+            progress.setReadLocked(true);
+        }
+        logger.info("Critical section request access approved and locking file");
+
+
+        // READ
+        logger.info("Sending read request to server");
+        centralClient.sendSocket(progress.getRequest());
+
+        // if (progress.getRequestType()==RequestType.WRITE) {
+        //     activateEditor();
+        // } 
+    }
+
+    public void sendFileContentToServer(FileContentInfo fcInfo) {
+        writeTimer -= System.nanoTime();
+        FileRequest fileRequest = new FileRequest(fcInfo, RequestType.WRITE);
+        getClock().newEventUpdate();
+
+        CriticalSectionRequest csRequest = pendingCSReqs.get(fcInfo.getFilePath()).getRequest();
+        csRequest.setCritSect(fileRequest);
+
+        logger.info("Sent write request to Server");
+        centralClient.sendSocket(csRequest);
+    }
+
+    public boolean distributedMutualExclusion(CriticalSectionRequest request) {
+        FileRequest fileRequest = (FileRequest)request.getCritSect();
+
+        logger.info("Received CS File Request type: " + fileRequest.getRequestType());
+
+        FileInfo fileInfo = fileRequest.getFileInfo();
+
+        logger.info("Requested to access file: " + fileInfo.getFilePath());
+
+        // Case 1
+        if (!pendingCSReqs.containsKey(fileInfo.getFilePath())) {
+            logger.info("Case 1: Receiving computer doesn't want to access CS, sends 'OK'");
+            return true;
+        }
+        
+        // Case 2
+        CriticalSectionProgress progress = pendingCSReqs.get(fileInfo.getFilePath());
+        RequestType requestType = fileRequest.getRequestType();
+        if ((requestType==RequestType.READ && progress.isReadLocked())||(requestType!=RequestType.READ && progress.isWriteLocked())) {
+            logger.info("Case 2: Receiving computer is currently accessing CS, queues request");
+            return false;
+        }
+        
+        // Case 3
+        if (getClock().isLessThan(request.getClock())) {
+            logger.info("Case 3: Receiving computer wants to also access CS and has smaller clock value, queue request");
+            return false;
+        }
+        
+        if (getClock().isEqualTo(request.getClock())) {
+            if (getServerInfo().getServerId() > request.getServerInfo().getServerId()) {
+                logger.info("Case 3a: Receiving computer wants to also access CS, has equal clock value, and greater ID, sends 'OK'");
+                return true;
+            }
+            logger.info("Case 3a: Receiving computer wants to also access CS, has equal clock value, and smaller ID, queues request");
+            return false;
+        } 
+
+        logger.info("Case 3: Receiving computer wants to also access CS and has greater clock value, sends 'OK'");
+        return true;    
     }
 
     public boolean handleProcessMessage(Message msg) {
@@ -104,18 +308,91 @@ public class Machine extends Entity{
     }
 
     public boolean handleUserInput(String[] tokenStr) {
+        if (editor.isActive()) {
+            FileContentInfo fcInfo = editor.handleUserInput(tokenStr);
+            if (fcInfo != null) {
+                sendFileContentToServer(fcInfo);
+            }
+            return false;
+        }
+
         if (super.handleUserInput(tokenStr)) return true;
         
+        RequestType requestType = null;
+
         switch (tokenStr[0]) {
+            // case "touch":
+            //     requestType = RequestType.REQUEST_WRITE;
+            //     break;
+            case "delay":
+                long dt = Long.parseLong(tokenStr[1]);
+                setUserInputDelay(System.currentTimeMillis() + dt);
+                break;
+            case "read":
+                readTimer -= System.nanoTime();
+                
+                requestType = RequestType.READ;
+                break;
+            case "write":
+                writeTimer -= System.nanoTime();
+
+                requestType = RequestType.REQUEST_WRITE;
+
+                if (tokenStr.length == 2) {
+                    logger.info("User requested to write to file: " + tokenStr[1]);
+                    // editor.setFile(new File(tokenStr[1]));
+                } else {
+                    logger.warn("Invalid number of arguments for edit");
+                }
+                break;
             default:
                 break;
+        }
+
+        if (requestType!=null) {
+            logger.trace("Handling command: " + tokenStr[0]);
+
+            if (tokenStr.length < 2) {
+                logger.warn("Missing file argument");
+                return false;
+            }
+    
+            FileInfo fileInfo = new FileInfo(tokenStr[1], false);
+            CriticalSectionRequest critSectRequest = new CriticalSectionRequest(getServerInfo(), new FileRequest(fileInfo, requestType), getClock());
+            
+            CriticalSectionProgress critSectReqProgress = new CriticalSectionProgress(clients.size(), critSectRequest);
+            logger.debug("Create critical section progress for: '" + fileInfo.getFilePath() + "'");
+
+            pendingCSReqs.put(fileInfo.getFilePath(), critSectReqProgress);
+
+            logger.debug("pendingCSReqs contains: " + pendingCSReqs.containsKey(fileInfo.getFilePath()));
+
+
+            getClock().newEventUpdate();
+
+            if (clients.size()==0) {
+                logger.info("Instant approval since 0 clients");
+                requestApproved(critSectReqProgress);
+            }
+
+            for (Messenger client : clients) {
+                client.sendSocket(critSectRequest);
+            }
         }
 
         return false;
     }
 
+    public void activateEditor(String filePath) {
+        logger.info("Activating file editor");
+        editor.setFile(new File(filePath));
+        editor.setActive(true);
+        editor.dump();
+    }
+
     public Messenger getActiveClient(ServerInfo serverInfo) {
         for (Messenger messenger : clients) {
+            if (messenger==null) continue;
             if (messenger.getDestServerInfo().equals(serverInfo)) {
                 return messenger;
             }
@@ -132,15 +409,14 @@ public class Machine extends Entity{
     }
 
     public Messenger createActiveClient(ServerInfo clientServerInfo) {
-
         Socket clientSocket;
 
         String clientIpAddress = clientServerInfo.getIpAddress();
 
-        logger.debug("Connecting to server: " + clientServerInfo.getServerId());
-
         try {
             clientSocket = new Socket(clientIpAddress, Settings.LOCAL_PORT_NUM+clientServerInfo.getServerId());
+
+            logger.info("Connecting to server: " + clientServerInfo.getServerId());
 
             return new Messenger(
                 getQueue(), 
@@ -148,6 +424,7 @@ public class Machine extends Entity{
                 getServerInfo(), 
                 clientServerInfo
             );
+
         } catch (UnknownHostException e) {
             logger.error("Cannot find host: " + clientIpAddress, e);
         } catch (IOException e) {
@@ -165,6 +442,22 @@ public class Machine extends Entity{
         }
     }
 
+    public boolean update() {
+        if (!centralClient.isAlive()) {
+            close();
+            return true;
+        }
+
+        for (Messenger client : clients) {
+            if (!client.isAlive()) {
+                clients.remove(client);
+                break;
+            }
+        }
+        
+        return false;
+    }
+
     @Override
     public void createHomeDir() {
         super.createHomeDir();
@@ -175,6 +468,19 @@ public class Machine extends Entity{
             logger.info("Deleted home directory: " + homeDir.getPath());
         }
         homeDir.mkdirs();
+    }
+
+    public void close() {
+        logger.info("Terminating Machine...");
+
+        logger.info("Read time = " + (readTimer/1000) + "[us] | Write time = " + (writeTimer/1000) + "[us]");
+
+        for (Messenger client : clients) {
+            client.close();
+        }
+        centralClient.close();
+        
+        super.close();
     }
     
 }

@@ -4,6 +4,8 @@ import java.io.File;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.Queue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import clock.Clock;
@@ -16,7 +18,6 @@ import message.UserMessage;
 import server.ServerInfo;
 import server.ServerProcess;
 import settings.Settings;
-import userInput.Editor;
 import userInput.UserInputProcess;
 
 public class Entity {
@@ -28,8 +29,9 @@ public class Entity {
     private ArrayList<Messenger> servers = new ArrayList<>();
     private File parentHomeDir = new File(Settings.PARENT_HOME_DIR);
     private File homeDir = null;
-    private UserInputProcess userInput = null;
-    private Editor editor = new Editor();
+    private long userInputDelay = 0;
+    private Queue<String> userInputQueue = new LinkedList<>();
+
 
     public Entity() {
         createParentHomeDir();
@@ -71,6 +73,14 @@ public class Entity {
 
     public void createHomeDir() {
         setHomeDir(new File(getParentHomeDir(), String.format("home_%d/aos", getServerInfo().getServerId())));
+    }
+
+    public long getUserInputDelay() {
+        return userInputDelay;
+    }
+
+    public void setUserInputDelay(long userInputDelay) {
+        this.userInputDelay = userInputDelay;
     }
 
     public ServerInfo getServerInfo() {
@@ -122,15 +132,8 @@ public class Entity {
     public boolean handleProcessMessage(Message msg) {
         switch (msg.getMessageType()) {
             case USER_INPUT:
-                // boolean result = handleUserInput(((UserMessage)msg.getData()).getUserInput().split(" "));
-                // logger.debug("handleUserInput result=" + result);
-                // return result;
-                String[] input = ((UserMessage)msg.getData()).getUserInput().split(" ");
-                input[0] = input[0].toLowerCase();
-                if (editor.isActive()) {
-                    return editor.handleUserInput(input);
-                }
-                return handleUserInput(input);
+                String msgStr = ((UserMessage)msg.getData()).getUserInput();
+                userInputQueue.add(msgStr);
             default:
                 break;
         }
@@ -138,20 +141,26 @@ public class Entity {
         return false;
     }
 
+    public boolean handleUserInputQueue() {
+        if (userInputQueue.isEmpty()) {
+            return false;
+        }
+        if (System.currentTimeMillis() < userInputDelay) {
+            return false;
+        }
+        
+        String msgStr = userInputQueue.poll();
+        String[] input = msgStr.split(" ");
+        input[0] = input[0].toLowerCase();
+
+        return handleUserInput(input);
+    }
+
     public boolean handleUserInput(String[] tokenStr) {
         switch (tokenStr[0]) {
             case "exit":
                 logger.info("User terminated Server");
                 return true;
-            case "edit":
-                if (tokenStr.length == 2) {
-                    logger.info("User requested to write to file: " + tokenStr[1]);
-                    editor.setActive(true);
-                    editor.setFile(new File(homeDir, tokenStr[1]));
-                    editor.dump();
-                } else {
-                    logger.warn("Invalid number of arguments for edit");
-                }
             default:
                 break;
         }
@@ -162,8 +171,8 @@ public class Entity {
     public ArrayList<ServerInfo> getServers() {
         ArrayList<ServerInfo> serverList = new ArrayList<>();
 
-        for (Messenger messenger : servers) {
-            serverList.add(messenger.getDestServerInfo());
+        for (Messenger server : servers) {
+            serverList.add(server.getDestServerInfo());
         }
         return serverList;
     }
@@ -187,15 +196,31 @@ public class Entity {
     }
 
     public boolean update() {
+        for (Messenger server : servers) {
+            if (!server.isAlive()) {
+                servers.remove(server);
+                break;
+            }
+        }
+        
         return false;
     }
 
     public void run() {
         while (true) {
             if (receive()) break;
+            if (handleUserInputQueue()) break;
             if (update()) break;
         }
-        logger.debug("Terminating...");
+        close();
+    }
+
+    public void close() {
+        logger.info("Terminating...");
+
+        for (Messenger server : servers) {
+            server.close();
+        }
     }
     
 }

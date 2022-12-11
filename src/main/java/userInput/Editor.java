@@ -10,6 +10,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import criticalSection.file.FileContent;
+import criticalSection.file.FileContentInfo;
 
 public class Editor {
     private static final Logger logger = LoggerFactory.getLogger(Editor.class);
@@ -17,23 +19,40 @@ public class Editor {
     private ArrayList<String> lines = new ArrayList<>();
     private boolean active = false; 
     private ArrayList<String> notifications = new ArrayList<>();
+    private File homeDir = null;
+
+    public Editor(File homeDir) {
+        this.homeDir = homeDir;
+        logger.debug("Home dir for editor: " + homeDir.getPath());
+    }
 
     public void setActive(boolean active) {
         this.active = active;
     }
 
     public void setFile(File file) {
+        if (this.file != null) {
+            logger.warn("Cannot edit a second file");
+            System.out.println("Cannot edit a second file");
+            return;
+        }
         this.file = file;
+        File newFile = getActualFile();
         lines.clear();
-        if (!file.exists()) return;
+        if (!newFile.exists()) return;
         try {
-            BufferedReader br = new BufferedReader(new FileReader(file));
+            BufferedReader br = new BufferedReader(new FileReader(newFile));
             while (br.ready()) {
                 lines.add(br.readLine());
             }
+            br.close();
         } catch (IOException e) {
             logger.error("File not found", e);
         }
+    }
+
+    public void resetFile() {
+        this.file = null;
     }
 
     public boolean isActive() {
@@ -41,6 +60,9 @@ public class Editor {
     }
 
     public void dump() {
+        if (file == null) {
+            return;
+        }
         for (int i = 0; i < 50; i++) {
             System.out.println("~");
         }
@@ -60,7 +82,7 @@ public class Editor {
         notifications.clear();
     }
 
-    public boolean handleUserInput(String[] tokenStr) {
+    public FileContentInfo handleUserInput(String[] tokenStr) {
         ArrayList<String> tokens = new ArrayList<>(Arrays.asList(tokenStr));
 
         String token = null;
@@ -100,9 +122,11 @@ public class Editor {
         switch (command) {
             case "/e":
                 logger.info("User terminated editor");
-                save();
                 setActive(false);
-                return false;
+                FileContentInfo fcInfo = save();
+                resetFile();
+                
+                return fcInfo;
             case "/r":
                 if (lineNum <= fileSize && lineNum > 0) {
                     lines.set(lineNum - 1, text.toString());
@@ -132,23 +156,34 @@ public class Editor {
 
         dump();
 
-        return false;
+        return null;
     }
 
-    public void save() {
+    public FileContentInfo save() {
+        StringBuilder content = new StringBuilder();
+        
+        for (String line : lines) {
+            content.append(line).append("\n");
+        }
+
+        String contentStr = content.toString();
+
         try {
-            PrintWriter pw = new PrintWriter(file);
-            for (String line : lines) {
-                pw.write(line + "\n");
-            }
+            File newFile = getActualFile();
+            PrintWriter pw = new PrintWriter(newFile);
+            pw.write(contentStr);
             pw.close();
+
+            logger.info("Editor writing to file: " + newFile.getPath());
         } catch (FileNotFoundException e) {
             logger.error("Could not write to file", e);
         }
+        
+        return new FileContentInfo(file.getPath(), new FileContent(contentStr, true));
     }
 
-    public void update() {
-        dump();
+    public File getActualFile() {
+        return new File(homeDir, file.getPath());
     }
 
 }

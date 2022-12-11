@@ -14,32 +14,52 @@ import criticalSection.Semaphore;
 public class FileSemaphore extends BaseSemaphore{
     private static final Logger logger = LoggerFactory.getLogger(FileSemaphore.class);
     private File file;
-    private Semaphore rwMutex = new Semaphore();
-    private Semaphore mutex = new Semaphore();
+    private Semaphore rwMutex = new Semaphore(1);
+    private Semaphore mutex = new Semaphore(1);
     private int readCount = 0;
+    public static long readTimer = 0;
+    public static long writeTimer = 0;
 
-    public FileSemaphore(FileInfo fileInfo) {
-        this.file = new File(fileInfo.getFilePath());
+    public FileSemaphore(String filePath) {
+        this.file = new File(filePath);
     }
 
     @Override
     public FileContent read() {
+
+        logger.debug("Read: waiting for mutex");
         mutex.waitSemaphore();
+
         readCount++;
+        logger.debug("Read count=" + readCount);
+
         if (readCount == 1) {
+            logger.debug("Read: waiting for rwmutex");
             rwMutex.waitSemaphore();
         }
+        logger.debug("Read: signal mutex");
         mutex.signal();
 
+        logger.debug("Reading file");
+        readTimer -= System.nanoTime();
         FileContent fileContent = readingFile();
+        readTimer += System.nanoTime();
 
+        logger.debug("Read: waiting for mutex");
         mutex.waitSemaphore();
+
         readCount--;
+        logger.debug("Read count=" + readCount);
+
         if (readCount == 0) {
+            logger.debug("Read: signal rwmutex");
             rwMutex.signal();
         }
+
+        logger.debug("Read: signal mutex");
         mutex.signal();
 
+        logger.debug("Done reading");
         return fileContent;
     }
 
@@ -51,10 +71,10 @@ public class FileSemaphore extends BaseSemaphore{
             StringBuilder fc = new StringBuilder();
 
             while (fr.ready()) {
-                fc.append(fr.readLine());
+                fc.append(fr.readLine()).append("\n");
             }
 
-            return new FileContent(fc.toString());
+            return new FileContent(fc.toString(), true);
         } catch (FileNotFoundException e) {
             logger.error("Could not find file: " + file.getName(), e);
         } catch (IOException e) {
@@ -68,7 +88,7 @@ public class FileSemaphore extends BaseSemaphore{
                 }
             }
         }
-        return new FileContent(null);
+        return new FileContent("", false);
     }
 
     @Override
@@ -78,7 +98,12 @@ public class FileSemaphore extends BaseSemaphore{
 
     @Override
     public void write(FileContent fc) {
+        rwMutex.waitSemaphore();
+
+        writeTimer -= System.nanoTime();
         writingToFile(fc);
+        writeTimer += System.nanoTime();
+
         rwMutex.signal();
     }
 
@@ -87,12 +112,12 @@ public class FileSemaphore extends BaseSemaphore{
 
         file.getParentFile().mkdirs();
         String content = (fc==null) ? "" : fc.getContent();
-        logger.info("Writing to file: " + file.getPath() + " w/ " + content.length() + " characters");
+        logger.info("Writing to file: " + file.getPath() + " with size: " + file.length() + " bytes");
         
         try {
             pw = new PrintWriter(file);
 
-            pw.println(content);
+            pw.print(content);
         } catch (FileNotFoundException e) {
             logger.error("Could not find file: " + file.getName(), e);
         } finally {

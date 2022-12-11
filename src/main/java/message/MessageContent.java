@@ -24,6 +24,9 @@ public class MessageContent {
         switch (type) {
             case CS_REQUEST:
                 return CriticalSectionRequest.toMessage(msgStr);
+            case CS_RESPONSE:
+            case CS_EXIT:
+                return CriticalSectionResponse.toMessage(msgStr);
             case CENTRAL_SERVER_HANDSHAKE:
                 return CentralServerHandshake.toMessage(msgStr);
             case CLIENT_HANDSHAKE:

@@ -21,12 +21,15 @@ public class Lamport extends Clock{
     @Override
     public void newEventUpdate() {
         c++;
+        logger.info("New event --> updated clock value to: " + c);
     }
 
     @Override
     public void receiveUpdate(Clock a) {
         if (a instanceof Lamport) {
+            int prevC = c;
             c = Math.max(((Lamport)a).c, this.c) + 1;
+            logger.info(String.format("Previous clock: %d Received clock: %d --> Current clock: %d", prevC, ((Lamport)a).c, c));
         } else {
             logger.error("Clock type not Lamport");
         }
@@ -42,4 +45,28 @@ public class Lamport extends Clock{
     public String toString() {
         return String.format("%sc:[%d]", super.toString(), c);
     }
+
+    @Override
+    public boolean isLessThan(Clock otherClock) {
+        return this.c < ((Lamport)otherClock).c;
+    }
+
+    @Override
+    public boolean isLessThanOrEqual(Clock otherClock) {
+        return this.c <= ((Lamport)otherClock).c;
+
+    }
+
+    @Override
+    public boolean isEqualTo(Clock otherClock) {
+        return this.c == ((Lamport)otherClock).c;
+
+    }
+
+    @Override
+    public boolean isConcurrent(Clock otherClock) {
+        return false;
+
+    }
+
 }

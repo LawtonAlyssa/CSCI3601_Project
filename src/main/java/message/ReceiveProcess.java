@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.SocketException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,6 +16,10 @@ public class ReceiveProcess extends Process{
     private static final Logger logger = LoggerFactory.getLogger(ReceiveProcess.class);
     private BufferedReader in;
     private Messenger messenger;
+    private int receiveCount = 0;
+    private static AtomicInteger allReceiveCount = new AtomicInteger(0);
+    private boolean isRunning = true;
+
 
     public ReceiveProcess(QueueManager queue, InputStream inputStream, Messenger messenger) {
         super(queue);
@@ -29,6 +34,11 @@ public class ReceiveProcess extends Process{
 
             if (line==null || line.length()==0) return;
 
+            receiveCount++;
+            allReceiveCount.incrementAndGet();
+
+            line = line.replaceAll("\\\\n", "\n");
+
             logger.trace("Received: " + line);
 
             ServerMessage msg = ServerMessage.toMessage(line);
@@ -38,8 +48,8 @@ public class ReceiveProcess extends Process{
 
             send(msg);
         } catch (SocketException e) {
-            logger.error("Server Terminated", e);
-            System.exit(1);
+            logger.error("Server terminated");
+            isRunning = false;
         }
         catch (IOException e) {
             logger.error("Failed to receive message", e);
@@ -50,7 +60,7 @@ public class ReceiveProcess extends Process{
     public void run() {
         try {
             logger.debug("Starting ReceiveProcess...");
-            while (true) {
+            while (isRunning) {
                 receiveSocket();
             } 
         } finally {
@@ -60,6 +70,8 @@ public class ReceiveProcess extends Process{
 
     public void close() {
         try {
+            logger.info("message count (self): " + receiveCount + " total messages: " + allReceiveCount.get());
+
             in.close();
         } catch (IOException e) {
             logger.error("BufferedReader failed to close.", e);

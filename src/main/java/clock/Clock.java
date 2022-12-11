@@ -17,6 +17,14 @@ public abstract class Clock {
 
     public abstract void receiveUpdate(Clock a);
 
+    public abstract boolean isLessThan(Clock otherClock);
+
+    public abstract boolean isLessThanOrEqual(Clock otherClock);
+
+    public abstract boolean isEqualTo(Clock otherClock);
+
+    public abstract boolean isConcurrent(Clock otherClock);
+
     public static Clock toMessage(String msgStr) {
         HashMap<String, String> hm = Message.parseMessage(msgStr);
         ClockType clockType = ClockType.valueOf(hm.get("clockType"));
@@ -29,6 +37,6 @@ public abstract class Clock {
 
     @Override
     public String toString() {
-        return String.format("type:[%s]", clockType);
+        return String.format("clockType:[%s]", clockType);
     }
 }

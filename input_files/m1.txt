@@ -1,0 +1,9 @@
+delay 1000
+write hello.txt
+/c
+hello
+line 1
+/e
+read hello.txt
+delay 1000
+exit

@@ -2,19 +2,19 @@ package server;
 
 import java.io.File;
 import java.net.Socket;
-import java.util.HashMap;
 import message.CentralServerHandshake;
 import message.CriticalSectionRequest;
+import message.CriticalSectionResponse;
 import message.Message;
+import message.MessageType;
 import message.Messenger;
 import message.ServerMessage;
 import process.Entity;
-import settings.Settings;
 import message.ServerConnection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import criticalSection.CentralizedLockManager;
+import criticalSection.CriticalSectionType;
 import criticalSection.RequestType;
 import criticalSection.file.FileInfo;
 import criticalSection.file.FileRequest;
@@ -23,6 +23,8 @@ public class CentralServer extends Entity{
     private static final Logger logger = LoggerFactory.getLogger(CentralServer.class);
     private int machineCount = 0;
     private CentralizedLockManager centLockManager = null;
+    private static long readTimer = 0;
+    private static long writeTimer = 0;
 
     public CentralServer() {
         setServerId(getCentralServerInfo().getServerId());
@@ -36,8 +38,18 @@ public class CentralServer extends Entity{
                 logger.info("Confirmed central handshake from Client " + msg.getSource().getServerId());
                 break;
             case CS_REQUEST:
-                CriticalSectionRequest critSectRequest = (CriticalSectionRequest)msg.getData();
-                centLockManager.addCriticalSectionRequest(critSectRequest);
+                CriticalSectionRequest csRequest = (CriticalSectionRequest)msg.getData();
+                if (csRequest.getCritSectType()==CriticalSectionType.FILE) {
+                    FileRequest fileRequest = (FileRequest)csRequest.getCritSect();
+                    if (fileRequest.getRequestType()==RequestType.READ) {
+                        readTimer-=System.nanoTime();
+                    } else {
+                        writeTimer-=System.nanoTime();
+                    }
+                }
+                
+                logger.info("Received crtical section request from Client: " + msg.getSource().getServerId());
+                centLockManager.addCriticalSectionRequest(msg);
                 break;
             default:
                 break;
@@ -78,38 +90,29 @@ public class CentralServer extends Entity{
     public boolean handleUserInput(String[] tokenStr) {
         if (super.handleUserInput(tokenStr)) return true;
 
-        if (!Settings.SERVER_COMMAND_ENABLED) return false;
-
-        RequestType requestType = null;
-
         switch (tokenStr[0]) {
-            case "touch":
-                requestType = RequestType.WRITE;
-                break;
-            case "cat":
-                requestType = RequestType.READ;
             default:
                 break;
-        }
-
-        if (requestType!=null) {
-            logger.trace("Handling command: " + tokenStr[0]);
-
-            if (tokenStr.length < 2) {
-                logger.warn("Missing file argument");
-                return false;
-            }
-    
-            FileInfo fileInfo = new FileInfo(tokenStr[1], false);
-            CriticalSectionRequest critSectRequest = new CriticalSectionRequest(getServerInfo(), new FileRequest(fileInfo, requestType), getClock());
-            centLockManager.addCriticalSectionRequest(critSectRequest);
         }
 
         return false;
     }
 
     public boolean update() {
-        centLockManager.handleRequest();
+        ServerMessage msg = centLockManager.handleRequest();
+        if (msg != null) {
+            CriticalSectionRequest csRequest = (CriticalSectionRequest)msg.getData();
+            FileRequest fileRequest = (FileRequest)csRequest.getCritSect();
+            FileInfo fileInfo = fileRequest.getFileInfo();
+
+            if (fileRequest.getRequestType()==RequestType.READ) {
+                readTimer+=System.nanoTime();
+            } else {
+                writeTimer+=System.nanoTime();
+            }
+            msg.reply(new CriticalSectionResponse(MessageType.CS_EXIT, fileInfo));
+        }
+        
         return false;
     }
 
@@ -123,4 +126,9 @@ public class CentralServer extends Entity{
         }
     }
 
+
+    public void close() {
+        logger.info("Sync Time | Read time = " + (readTimer/1000) + "[us] | Write time = " + (writeTimer/1000) + "[us]");
+        centLockManager.close();
+    }
 }

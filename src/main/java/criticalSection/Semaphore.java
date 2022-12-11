@@ -6,9 +6,17 @@ import java.util.LinkedList;
 
 public class Semaphore {
     private static final Logger logger = LoggerFactory.getLogger(Semaphore.class);
-    private int value;
+    private int value = 0;
     private LinkedList<Thread> waitingQueue;
     
+    public Semaphore(int value) {
+        this.value = value;
+    }
+
+    public Semaphore() {
+        
+    }
+
     public void waitSemaphore() {
         value--;
 

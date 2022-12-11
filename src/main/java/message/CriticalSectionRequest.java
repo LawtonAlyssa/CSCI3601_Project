@@ -22,6 +22,14 @@ public class CriticalSectionRequest extends MessageContent{
         return serverInfo;
     }
 
+    public void setCritSectType(CriticalSectionType type) {
+        critSect.setCritSectType(type);
+    }
+
+    public void setCritSect(CriticalSectionInfo critSect) {
+        this.critSect = critSect;
+    }
+
     public CriticalSectionInfo getCritSect() {
         return critSect;
     }
@@ -36,14 +44,14 @@ public class CriticalSectionRequest extends MessageContent{
 
     public static CriticalSectionRequest toMessage(String msgStr) {
         HashMap<String, String> hm = Message.parseMessage(msgStr);
-        ServerInfo computerId = ServerInfo.toMessage(hm.get("computerId"));
+        ServerInfo serverInfo = ServerInfo.toMessage(hm.get("serverInfo"));
         CriticalSectionInfo critSect = CriticalSectionInfo.toMessage(hm.get("critSect"));
         Clock clock = Clock.toMessage(hm.get("clock"));
-        return new CriticalSectionRequest(computerId, critSect, clock);
+        return new CriticalSectionRequest(serverInfo, critSect, clock);
     }
 
     @Override
     public String toString() {
-        return String.format("%scomputerId:[%s]critSect:[%s]clock:[%s]", super.toString(), serverInfo, critSect, clock);
+        return String.format("%sserverInfo:[%s]critSect:[%s]clock:[%s]", super.toString(), serverInfo, critSect, clock);
     }
 }

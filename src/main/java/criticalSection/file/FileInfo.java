@@ -2,8 +2,11 @@ package criticalSection.file;
 
 import java.util.HashMap;
 import message.Message;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class FileInfo {
+    private static final Logger logger = LoggerFactory.getLogger(FileInfo.class);
     private String filePath = "/";
     private boolean hasContent = false;
 
@@ -31,7 +34,7 @@ public class FileInfo {
     public static FileInfo toMessage(String msgStr) {
         HashMap<String, String> hm = Message.parseMessage(msgStr);
         boolean hasContent = Boolean.parseBoolean(hm.get("hasContent"));
-        if (hasContent)  return FileWriteInfo.toMessage(msgStr);
+        if (hasContent)  return FileContentInfo.toMessage(msgStr);
         String filePath = hm.get("filePath");
         return new FileInfo(filePath, hasContent);
     }
@@ -41,4 +44,14 @@ public class FileInfo {
         return String.format("filePath:[%s]hasContent:[%b]", filePath, hasContent);
     }
 
+    @Override
+    public int hashCode() {
+        final int prime = 31;
+        int result = 1;
+        result = prime * result + ((filePath == null) ? 0 : filePath.hashCode());
+        logger.debug("FileInfo hash: " + result);
+
+        return result;
+    }
+    
 }

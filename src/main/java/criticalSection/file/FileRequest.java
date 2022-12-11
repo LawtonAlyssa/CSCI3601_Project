@@ -24,6 +24,10 @@ public class FileRequest extends CriticalSectionInfo{
         return requestType;
     }   
 
+    public void setFileInfo(FileInfo fileInfo) {
+        this.fileInfo = fileInfo;
+    }
+
     public static FileRequest toMessage(String msgStr) {
         HashMap<String, String> hm = Message.parseMessage(msgStr);
         FileInfo fileInfo = FileInfo.toMessage(hm.get("fileInfo"));

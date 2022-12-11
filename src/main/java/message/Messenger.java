@@ -14,6 +14,9 @@ public class Messenger{
     private PrintWriter out = null;
     private ServerInfo sourceServerInfo = null;
     private ServerInfo destServerInfo = null;
+    private int sentCount = 0;
+    private static int allSentCount = 0;
+    private ReceiveProcess receiveProcess = null;
 
     public Messenger(QueueManager queue, Socket messengerSocket, ServerInfo sourceServerInfo, ServerInfo destServerInfo) {
         this.messengerSocket = messengerSocket;
@@ -27,8 +30,8 @@ public class Messenger{
         }
 
         try {
-            ReceiveProcess rp = new ReceiveProcess(queue, messengerSocket.getInputStream(), this);
-            rp.start();
+            receiveProcess = new ReceiveProcess(queue, messengerSocket.getInputStream(), this);
+            receiveProcess.start();
         } catch (IOException e) {
             logger.error("Failed to get InputStream", e);
         }
@@ -43,7 +46,10 @@ public class Messenger{
     }
 
     public void sendSocket(ServerMessage msg) {
-        String msgStr = msg.toString();
+        sentCount++;
+        allSentCount++;
+
+        String msgStr = msg.toString().replaceAll("\n", "\\\\n");
         logger.debug("Sent " + msg.toLog());
         logger.trace("Sent: " + msgStr);
         
@@ -55,8 +61,14 @@ public class Messenger{
         sendSocket(new ServerMessage(sourceServerInfo, destServerInfo, data));
     }
 
+    public boolean isAlive() {
+        return receiveProcess.isAlive();
+    }
+
     public void close() {
+        receiveProcess.interrupt();
         try {
+            logger.info("message count (self): " + sentCount + " total messages: " + allSentCount);
             out.close();
             messengerSocket.close();
         } catch (Exception e) {
