@@ -8,8 +8,11 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.concurrent.TimeUnit;
+
 import criticalSection.BaseSemaphore;
 import criticalSection.Semaphore;
+import settings.Settings;
 
 public class FileSemaphore extends BaseSemaphore{
     private static final Logger logger = LoggerFactory.getLogger(FileSemaphore.class);
@@ -63,7 +66,19 @@ public class FileSemaphore extends BaseSemaphore{
         return fileContent;
     }
 
+    private void ioDelay() {
+        try {
+            logger.debug("Before I/O delay");
+            TimeUnit.SECONDS.sleep(Settings.IO_DELAY);
+            logger.debug("After I/O delay");
+        } catch (InterruptedException e) {
+            logger.error("Coult not delay I/O - interrupted", e);
+        }
+    }
+
     private FileContent readingFile() {
+        ioDelay();
+        
         BufferedReader fr = null;
 
         try {
@@ -108,6 +123,8 @@ public class FileSemaphore extends BaseSemaphore{
     }
 
     public void writingToFile(FileContent fc) {
+        ioDelay();
+        
         PrintWriter pw = null;
 
         file.getParentFile().mkdirs();

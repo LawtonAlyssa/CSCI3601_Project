@@ -70,7 +70,7 @@ public class ReceiveProcess extends Process{
 
     public void close() {
         try {
-            logger.info("message count (self): " + receiveCount + " total messages: " + allReceiveCount.get());
+            logger.warn("message count (self): " + receiveCount + " total messages: " + allReceiveCount.get());
 
             in.close();
         } catch (IOException e) {

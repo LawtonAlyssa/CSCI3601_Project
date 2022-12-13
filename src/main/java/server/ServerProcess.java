@@ -22,7 +22,7 @@ public class ServerProcess extends Process{
 
     @Override
     public void run() {
-        logger.info("Running ServerConnect...");
+        logger.debug("Running ServerConnect...");
         try {
             while (true) {
                 connect();

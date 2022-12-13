@@ -62,10 +62,16 @@ public class Machine extends Entity{
                 msg.reply(new MessageContent(MessageType.CENTRAL_CLIENT_HANDSHAKE));
                 logger.info("Sent central client handshake");
 
+                setWaitingForServer(false); // Allow user input after handshake with central server
+
+                startServerProcess();
+
                 break;
             case SERVER_HANDSHAKE:
                 int msgServerId = msg.getSource().getServerId();
                 logger.info("Received server handshake from Server " + msgServerId);
+
+                logger.debug("Sending client handshake from Server: " + getServerInfo().getServerId());
                 
                 ClientHandshake ch = new ClientHandshake(getServerInfo().getServerId());
                 logger.debug("Server Destination Messenger: " + msg.getMessenger().getDestServerInfo().getServerId());
@@ -120,7 +126,7 @@ public class Machine extends Entity{
                 }
                 break;
             case CS_EXIT:
-                logger.info("Received critical section response from server notifying exit and unlocking file");
+                logger.warn("Received critical section response from server notifying exit and unlocking file");
                 CriticalSectionResponse exitResp = (CriticalSectionResponse)msg.getData();
                 FileInfo fileInfo = exitResp.getFileInfo();
 
@@ -131,6 +137,7 @@ public class Machine extends Entity{
 
                 if (exitProgress == null) {
                     logger.warn("Progress is null");
+                    break;
                 }
 
                 RequestType requestType = exitProgress.getRequestType();
@@ -138,8 +145,10 @@ public class Machine extends Entity{
                 logger.debug("Request type: " + requestType);
 
                 if (requestType == RequestType.READ) {
+                    logger.debug("Adding to readTimer");
                     readTimer += System.nanoTime();
                 } else {
+                    logger.debug("Adding to writeTimer");
                     writeTimer += System.nanoTime();
                 }
 
@@ -159,6 +168,8 @@ public class Machine extends Entity{
                             serverMessage.reply(new CriticalSectionResponse(MessageType.CS_RESPONSE, exitResp.getFileInfo()));
                         }
                     }
+
+                    setWaitingForServer(false); // writing done resume user input
                 }
                 
                 if (requestType!=RequestType.WRITE) { // storing file locally
@@ -189,9 +200,8 @@ public class Machine extends Entity{
                     if (requestType==RequestType.REQUEST_WRITE) {
                         activateEditor(fcInfo.getFilePath());
                     }
-                }
+                } 
 
-                
                 break;
             default:
                 break;
@@ -211,11 +221,11 @@ public class Machine extends Entity{
         } else {
             progress.setReadLocked(true);
         }
-        logger.info("Critical section request access approved and locking file");
+        logger.warn("Critical section request access approved and locking file");
 
 
         // READ
-        logger.info("Sending read request to server");
+        logger.warn("Sending read request to server");
         centralClient.sendSocket(progress.getRequest());
 
         // if (progress.getRequestType()==RequestType.WRITE) {
@@ -224,14 +234,18 @@ public class Machine extends Entity{
     }
 
     public void sendFileContentToServer(FileContentInfo fcInfo) {
+        logger.debug("Starting second writeTimer");
         writeTimer -= System.nanoTime();
+
+        setWaitingForServer(true);
+        
         FileRequest fileRequest = new FileRequest(fcInfo, RequestType.WRITE);
         getClock().newEventUpdate();
 
         CriticalSectionRequest csRequest = pendingCSReqs.get(fcInfo.getFilePath()).getRequest();
         csRequest.setCritSect(fileRequest);
 
-        logger.info("Sent write request to Server");
+        logger.warn("Sent write request to Server");
         centralClient.sendSocket(csRequest);
     }
 
@@ -246,7 +260,7 @@ public class Machine extends Entity{
 
         // Case 1
         if (!pendingCSReqs.containsKey(fileInfo.getFilePath())) {
-            logger.info("Case 1: Receiving computer doesn't want to access CS, sends 'OK'");
+            logger.warn("Case 1: Receiving computer doesn't want to access CS, sends 'OK'");
             return true;
         }
         
@@ -254,26 +268,26 @@ public class Machine extends Entity{
         CriticalSectionProgress progress = pendingCSReqs.get(fileInfo.getFilePath());
         RequestType requestType = fileRequest.getRequestType();
         if ((requestType==RequestType.READ && progress.isReadLocked())||(requestType!=RequestType.READ && progress.isWriteLocked())) {
-            logger.info("Case 2: Receiving computer is currently accessing CS, queues request");
+            logger.warn("Case 2: Receiving computer is currently accessing CS, queues request");
             return false;
         }
         
         // Case 3
         if (getClock().isLessThan(request.getClock())) {
-            logger.info("Case 3: Receiving computer wants to also access CS and has smaller clock value, queue request");
+            logger.warn("Case 3: Receiving computer wants to also access CS and has smaller clock value, queue request");
             return false;
         }
         
         if (getClock().isEqualTo(request.getClock())) {
             if (getServerInfo().getServerId() > request.getServerInfo().getServerId()) {
-                logger.info("Case 3a: Receiving computer wants to also access CS, has equal clock value, and greater ID, sends 'OK'");
+                logger.warn("Case 3a: Receiving computer wants to also access CS, has equal clock value, and greater ID, sends 'OK'");
                 return true;
             }
-            logger.info("Case 3a: Receiving computer wants to also access CS, has equal clock value, and smaller ID, queues request");
+            logger.warn("Case 3a: Receiving computer wants to also access CS, has equal clock value, and smaller ID, queues request");
             return false;
         } 
 
-        logger.info("Case 3: Receiving computer wants to also access CS and has greater clock value, sends 'OK'");
+        logger.warn("Case 3: Receiving computer wants to also access CS and has greater clock value, sends 'OK'");
         return true;    
     }
 
@@ -308,7 +322,7 @@ public class Machine extends Entity{
     }
 
     public boolean handleUserInput(String[] tokenStr) {
-        if (editor.isActive()) {
+        if (editor != null && editor.isActive()) {
             FileContentInfo fcInfo = editor.handleUserInput(tokenStr);
             if (fcInfo != null) {
                 sendFileContentToServer(fcInfo);
@@ -324,20 +338,20 @@ public class Machine extends Entity{
             // case "touch":
             //     requestType = RequestType.REQUEST_WRITE;
             //     break;
-            case "delay":
-                long dt = Long.parseLong(tokenStr[1]);
-                setUserInputDelay(System.currentTimeMillis() + dt);
-                break;
             case "read":
+                logger.debug("Starting readTimer");
+                
                 readTimer -= System.nanoTime();
                 
                 requestType = RequestType.READ;
                 break;
             case "write":
+                logger.debug("Starting writeTimer");
                 writeTimer -= System.nanoTime();
 
+                
                 requestType = RequestType.REQUEST_WRITE;
-
+                
                 if (tokenStr.length == 2) {
                     logger.info("User requested to write to file: " + tokenStr[1]);
                     // editor.setFile(new File(tokenStr[1]));
@@ -347,9 +361,11 @@ public class Machine extends Entity{
                 break;
             default:
                 break;
-        }
-
+            }
+            
         if (requestType!=null) {
+            setWaitingForServer(true); // pause user input until server is ready
+
             logger.trace("Handling command: " + tokenStr[0]);
 
             if (tokenStr.length < 2) {
@@ -388,6 +404,7 @@ public class Machine extends Entity{
         editor.setFile(new File(filePath));
         editor.setActive(true);
         editor.dump();
+        setWaitingForServer(false);
     }
 
     public Messenger getActiveClient(ServerInfo serverInfo) {
@@ -443,7 +460,7 @@ public class Machine extends Entity{
     }
 
     public boolean update() {
-        if (!centralClient.isAlive()) {
+        if (centralClient!=null && !centralClient.isAlive()) {
             close();
             return true;
         }
@@ -464,21 +481,33 @@ public class Machine extends Entity{
         File homeDir = getHomeDir();
 
         if (homeDir.exists()) {
-            homeDir.delete();
+            deleteDirectory(homeDir);
             logger.info("Deleted home directory: " + homeDir.getPath());
         }
         homeDir.mkdirs();
     }
 
+    boolean deleteDirectory(File directoryToBeDeleted) {
+        File[] allContents = directoryToBeDeleted.listFiles();
+        if (allContents != null) {
+            for (File file : allContents) {
+                deleteDirectory(file);
+            }
+        }
+        return directoryToBeDeleted.delete();
+    }
+
     public void close() {
         logger.info("Terminating Machine...");
 
-        logger.info("Read time = " + (readTimer/1000) + "[us] | Write time = " + (writeTimer/1000) + "[us]");
+        logger.warn("Read time = " + (readTimer/1000) + "[us] | Write time = " + (writeTimer/1000) + "[us]");
 
         for (Messenger client : clients) {
             client.close();
         }
-        centralClient.close();
+        if (centralClient != null) {
+            centralClient.close();
+        }
         
         super.close();
     }

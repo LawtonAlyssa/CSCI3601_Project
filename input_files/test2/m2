@@ -1,0 +1,5 @@
+delay 1000
+read hello.txt
+delay 5000
+read hello.txt
+exit

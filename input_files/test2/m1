@@ -1,0 +1,4 @@
+read hello.txt
+delay 9000
+read hello.txt
+exit

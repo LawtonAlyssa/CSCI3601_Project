@@ -31,7 +31,7 @@ public class Entity {
     private File homeDir = null;
     private long userInputDelay = 0;
     private Queue<String> userInputQueue = new LinkedList<>();
-
+    private boolean waitingForServer = true;
 
     public Entity() {
         createParentHomeDir();
@@ -48,7 +48,6 @@ public class Entity {
         
         this.clock = (Settings.CLOCK_TYPE == ClockType.LAMPORT) ? new Lamport() : null;
 
-        startServerProcess();
         startUserInputProcess();
     }
 
@@ -63,6 +62,10 @@ public class Entity {
         UserInputProcess uip = new UserInputProcess(queue);
         uip.start();
         logger.trace("Keyboard is listening");
+    }
+
+    public void setWaitingForServer(boolean waitingForEditorToStart) {
+        this.waitingForServer = waitingForEditorToStart;
     }
 
     public void setServerId(int serverId) {
@@ -133,6 +136,7 @@ public class Entity {
         switch (msg.getMessageType()) {
             case USER_INPUT:
                 String msgStr = ((UserMessage)msg.getData()).getUserInput();
+                logger.debug("Adding user input to queue:" + msgStr);
                 userInputQueue.add(msgStr);
             default:
                 break;
@@ -145,11 +149,12 @@ public class Entity {
         if (userInputQueue.isEmpty()) {
             return false;
         }
-        if (System.currentTimeMillis() < userInputDelay) {
+        if (System.currentTimeMillis() < userInputDelay || waitingForServer) {
             return false;
         }
         
         String msgStr = userInputQueue.poll();
+        logger.debug("Handling User Input from Queue: " + msgStr);
         String[] input = msgStr.split(" ");
         input[0] = input[0].toLowerCase();
 
@@ -161,6 +166,11 @@ public class Entity {
             case "exit":
                 logger.info("User terminated Server");
                 return true;
+            case "delay":
+                long dt = Long.parseLong(tokenStr[1]);
+                logger.info("delay starts: " + dt);
+                setUserInputDelay(System.currentTimeMillis() + dt);
+                break;
             default:
                 break;
         }

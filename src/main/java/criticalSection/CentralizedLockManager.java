@@ -71,7 +71,7 @@ public class CentralizedLockManager {
         // fileInfo.setFilePath(filePath);
         
         if (!semaphoreMap.containsKey(filePath)) {
-            logger.debug("File not found in semaphore map: " + filePath);
+            logger.debug("First access in semaphore map: " + filePath);
             semaphoreMap.put(filePath, new FileSemaphore(filePath));    
         } 
         
@@ -100,7 +100,7 @@ public class CentralizedLockManager {
     }
 
     public void close() {
-        logger.info("I/O Time | Read time = " + (FileSemaphore.readTimer/1000) + "[us] | Write time = " + (FileSemaphore.writeTimer/1000) + "[us]");
+        logger.warn("I/O Time | Read time = " + (FileSemaphore.readTimer/1000) + "[us] | Write time = " + (FileSemaphore.writeTimer/1000) + "[us]");
     }
     
 }

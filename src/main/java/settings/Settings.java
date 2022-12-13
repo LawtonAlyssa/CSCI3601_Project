@@ -13,5 +13,6 @@ public class Settings {
     public final static int LOCAL_PORT_NUM = 12345;
     public final static int MAX_CLIENTS = 10;
     public final static String PARENT_HOME_DIR = "home_dirs";
+    public final static long IO_DELAY = 3;
 
 }

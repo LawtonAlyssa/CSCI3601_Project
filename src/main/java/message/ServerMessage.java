@@ -43,7 +43,7 @@ public class ServerMessage extends Message{
     }
 
     public void reply(MessageContent msg) {
-        getMessenger().sendSocket(new ServerMessage(dest, source, msg));
+        getMessenger().sendSocket(msg);
     }
 
     @Override

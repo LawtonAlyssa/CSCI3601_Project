@@ -29,6 +29,8 @@ public class CentralServer extends Entity{
     public CentralServer() {
         setServerId(getCentralServerInfo().getServerId());
         centLockManager = new CentralizedLockManager(getHomeDir());
+
+        startServerProcess();
     }
     
     public boolean handleServerMessage(ServerMessage msg) {
@@ -128,7 +130,7 @@ public class CentralServer extends Entity{
 
 
     public void close() {
-        logger.info("Sync Time | Read time = " + (readTimer/1000) + "[us] | Write time = " + (writeTimer/1000) + "[us]");
+        logger.warn("Sync Time | Read time = " + (readTimer/1000) + "[us] | Write time = " + (writeTimer/1000) + "[us]");
         centLockManager.close();
     }
 }

@@ -68,7 +68,7 @@ public class Messenger{
     public void close() {
         receiveProcess.interrupt();
         try {
-            logger.info("message count (self): " + sentCount + " total messages: " + allSentCount);
+            logger.warn("message count (self): " + sentCount + " total messages: " + allSentCount);
             out.close();
             messengerSocket.close();
         } catch (Exception e) {
