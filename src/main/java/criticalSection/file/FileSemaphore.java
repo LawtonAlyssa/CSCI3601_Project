@@ -9,7 +9,6 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.concurrent.TimeUnit;
-
 import criticalSection.BaseSemaphore;
 import criticalSection.Semaphore;
 import settings.Settings;

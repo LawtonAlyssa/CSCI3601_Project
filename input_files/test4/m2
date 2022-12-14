@@ -1,0 +1,6 @@
+delay 500
+write hello.txt
+/c
+test4 hello from m2
+/e
+exit

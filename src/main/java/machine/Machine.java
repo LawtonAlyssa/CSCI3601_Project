@@ -44,6 +44,10 @@ public class Machine extends Entity{
     private long readTimer = 0;
     private long writeTimer = 0;
 
+    public Machine() {
+        setWaitingForServer(true);
+    }
+
     public boolean handleServerMessage(ServerMessage msg) {
         if (super.handleServerMessage(msg)) return true;
         switch (msg.getMessageType()) {
@@ -221,8 +225,10 @@ public class Machine extends Entity{
         } else {
             progress.setReadLocked(true);
         }
-        logger.warn("Critical section request access approved and locking file");
-
+        logger.warn("Critical section request access approved and locking file --> Request type: " +
+            progress.getRequestType() + ", reading is " + 
+            ((progress.isReadLocked()) ? "locked" : "allowed") + ", writing is " +
+            ((progress.isWriteLocked()) ? "locked" : "allowed"));
 
         // READ
         logger.warn("Sending read request to server");
@@ -263,11 +269,27 @@ public class Machine extends Entity{
             logger.warn("Case 1: Receiving computer doesn't want to access CS, sends 'OK'");
             return true;
         }
+
+        CriticalSectionProgress currProgress = pendingCSReqs.get(fileInfo.getFilePath());
+        RequestType currRequestType = currProgress.getRequestType();
         
-        // Case 2
-        CriticalSectionProgress progress = pendingCSReqs.get(fileInfo.getFilePath());
+        CriticalSectionProgress reqProgress = pendingCSReqs.get(fileInfo.getFilePath());
         RequestType requestType = fileRequest.getRequestType();
-        if ((requestType==RequestType.READ && progress.isReadLocked())||(requestType!=RequestType.READ && progress.isWriteLocked())) {
+
+        if (currRequestType==RequestType.READ && requestType==RequestType.READ) {
+            logger.warn("Case 1a: Receiving computer wants to read too, sends 'OK'");
+            return true;
+        } 
+
+        // Case 2
+        logger.warn("--> Request type: " + requestType + ", reading is " + 
+            ((reqProgress.isReadLocked()) ? "locked" : "allowed") + ", writing is " +
+            ((reqProgress.isWriteLocked()) ? "locked" : "allowed"));
+
+        
+
+        if ((requestType==RequestType.READ && reqProgress.isReadLocked()) || 
+            (requestType!=RequestType.READ && reqProgress.isWriteLocked())) {
             logger.warn("Case 2: Receiving computer is currently accessing CS, queues request");
             return false;
         }

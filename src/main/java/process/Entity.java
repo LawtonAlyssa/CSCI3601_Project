@@ -31,14 +31,14 @@ public class Entity {
     private File homeDir = null;
     private long userInputDelay = 0;
     private Queue<String> userInputQueue = new LinkedList<>();
-    private boolean waitingForServer = true;
+    private boolean waitingForServer = false;
 
     public Entity() {
         createParentHomeDir();
 
         try {
             this.serverInfo = new ServerInfo(InetAddress.getLocalHost().getHostAddress());
-            logger.debug("Local IP Address: " + serverInfo.getIpAddress());
+            logger.info("Local IP Address: " + serverInfo.getIpAddress());
             this.centralServerInfo = new ServerInfo(Settings.CENTRAL_SERVER_IP_ADDR, Settings.CENTRAL_SERVER_ID);
         } catch (UnknownHostException e) {
             logger.error("Could not start local server", e);
@@ -149,6 +149,7 @@ public class Entity {
         if (userInputQueue.isEmpty()) {
             return false;
         }
+
         if (System.currentTimeMillis() < userInputDelay || waitingForServer) {
             return false;
         }

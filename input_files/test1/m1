@@ -1,6 +1,6 @@
 write hello.txt
 /c
-hello
+test1 hello from m1
 line 1
 /e
 read hello.txt

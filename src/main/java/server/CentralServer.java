@@ -62,6 +62,7 @@ public class CentralServer extends Entity{
 
     public boolean handleProcessMessage(Message msg) {
         if (super.handleProcessMessage(msg)) return true;
+
         switch (msg.getMessageType()) {
             case SERVER_CONN:
                 Socket connectionSocket = ((ServerConnection)msg.getData()).getConnectionSocket();
