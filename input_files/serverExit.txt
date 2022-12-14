@@ -1,2 +1,2 @@
-delay 10000
+delay 30000
 exit

@@ -1,3 +1,4 @@
+wait 2
 delay 1000
 write hello.txt
 test3 hello from m2

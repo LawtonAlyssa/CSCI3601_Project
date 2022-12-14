@@ -1,3 +1,4 @@
+wait 2
 write hello.txt
 /c
 test3 hello from m1

@@ -43,8 +43,10 @@ public class Machine extends Entity{
     private Editor editor = null;
     private long readTimer = 0;
     private long writeTimer = 0;
+    private int machines = 0;
 
     public Machine() {
+        
         setWaitingForServer(true);
     }
 
@@ -65,8 +67,6 @@ public class Machine extends Entity{
                 
                 msg.reply(new MessageContent(MessageType.CENTRAL_CLIENT_HANDSHAKE));
                 logger.info("Sent central client handshake");
-
-                setWaitingForServer(false); // Allow user input after handshake with central server
 
                 startServerProcess();
 
@@ -357,9 +357,24 @@ public class Machine extends Entity{
         RequestType requestType = null;
 
         switch (tokenStr[0]) {
-            // case "touch":
-            //     requestType = RequestType.REQUEST_WRITE;
-            //     break;
+            case "wait":
+                if (tokenStr.length==2) {
+                    try {
+                        machines = Integer.parseInt(tokenStr[1]);
+                        
+                        if (clients.size()>=machines) {
+                            logger.warn("All machines are already connected");
+                        } else {
+                            logger.warn("Waiting for " + machines  + " machines to connect to");
+                        }
+                        setWaitingForServer(clients.size()<machines); // Allow user input after handshake with central server
+                    } catch (Exception e) {
+                        logger.error("Second argument must be an integer value");
+                    }
+                } else {
+                    logger.error("Invalid number of arguments for wait");
+                }
+                break;
             case "read":
                 logger.debug("Starting readTimer");
                 
@@ -378,7 +393,7 @@ public class Machine extends Entity{
                     logger.info("User requested to write to file: " + tokenStr[1]);
                     // editor.setFile(new File(tokenStr[1]));
                 } else {
-                    logger.warn("Invalid number of arguments for edit");
+                    logger.error("Invalid number of arguments for write");
                 }
                 break;
             default:
@@ -445,6 +460,11 @@ public class Machine extends Entity{
 
         logger.debug("Added client w/ id: " + clientServerInfo.getServerId());
         clients.add(createActiveClient(clientServerInfo));
+
+        if (clients.size()==machines) {
+            logger.warn("All machines have been connected");
+        }
+        setWaitingForServer(clients.size()<machines); // Allow user input if enough machines are connected
     }
 
     public Messenger createActiveClient(ServerInfo clientServerInfo) {

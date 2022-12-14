@@ -2,37 +2,37 @@ package criticalSection;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.io.File;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.Queue;
-import criticalSection.file.FileContent;
+import java.util.concurrent.LinkedBlockingQueue;
 import criticalSection.file.FileInfo;
 import criticalSection.file.FileRequest;
 import criticalSection.file.FileSemaphore;
-import criticalSection.file.FileContentInfo;
 import message.CriticalSectionRequest;
 import message.ServerMessage;
+import process.QueueManager;
 import server.ServerInfo;
 
 public class CentralizedLockManager {
     private static final Logger logger = LoggerFactory.getLogger(CentralizedLockManager.class);
     private HashMap<String, BaseSemaphore> semaphoreMap = new HashMap<>();
-    private Queue<ServerMessage> requestQueue = new LinkedList<>();
+    private Queue<ServerMessage> requestQueue = new LinkedBlockingQueue<>();
     private HashMap<ServerInfo, FileInfo> fileInfos = new HashMap<>();
     private File homeDir = null;
+    private QueueManager queue = null;
 
-    public CentralizedLockManager(File homeDir) {
+    public CentralizedLockManager(File homeDir, QueueManager queue) {
         this.homeDir = homeDir;
+        this.queue = queue;
     }
 
     public void addCriticalSectionRequest(ServerMessage msg) {
         requestQueue.add(msg);
     }
 
-    public ServerMessage handleRequest() {
-        if (requestQueue.isEmpty()) return null;
+    public void handleRequest() {
+        if (requestQueue.isEmpty()) return;
 
         ServerMessage msg = requestQueue.poll();
 
@@ -46,22 +46,18 @@ public class CentralizedLockManager {
                 fileInfos.put(csRequest.getServerInfo(), new FileInfo());
             }
             FileRequest fileRequest = (FileRequest)csRequest.getCritSect();
-            FileContentInfo fcInfo = handleFileRequest(fileRequest, fileInfos.get(csRequest.getServerInfo()));
-
-            if (fcInfo != null) {
-                fileRequest.setFileInfo(fcInfo);
-            }
+            // proccess
+            handleFileRequest(fileRequest, fileInfos.get(csRequest.getServerInfo()), msg);
 
         } else {
             logger.warn("Request type not found: " + csRequestType);
         }
 
-        return msg;
+        logger.info("Completed handling request");
     }
 
-    private FileContentInfo handleFileRequest(FileRequest fileRequest, FileInfo filePointer) {
+    private void handleFileRequest(FileRequest fileRequest, FileInfo filePointer, ServerMessage serverMessage) {
         FileInfo fileInfo = fileRequest.getFileInfo();
-        String originalFilePath = fileInfo.getFilePath();
         
         RequestType requestType = fileRequest.getRequestType();
 
@@ -80,23 +76,13 @@ public class CentralizedLockManager {
 
         if (semaphoreVal instanceof FileSemaphore) {
             FileSemaphore fileSemaphore = (FileSemaphore)semaphoreVal;
-            switch (requestType) {
-                case REQUEST_WRITE:   
-                //     fileSemaphore.requestWrite();
-                case READ:
-                    return new FileContentInfo(originalFilePath, fileSemaphore.read());
-                case WRITE:    
-                    FileContent content = fileInfo.getFileContent();
-                    // content.setFilePath(filePath);
-                    fileSemaphore.write(content);
-                default:
-                    break;
-            }
+            
+            logger.info("Created HandleFileIOProcess");
+            HandleFileIOProcess hfiop = new HandleFileIOProcess(queue, fileSemaphore, requestType, fileInfo, serverMessage);
+            hfiop.start();
         } else {
             logger.error("Semaphore requested is not a file");
         }
-
-        return null;
     }
 
     public void close() {

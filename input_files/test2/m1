@@ -1,4 +1,6 @@
+wait 2
 read hello.txt
 delay 9000
 read hello.txt
+delay 1000
 exit

@@ -18,6 +18,7 @@ import criticalSection.CriticalSectionType;
 import criticalSection.RequestType;
 import criticalSection.file.FileInfo;
 import criticalSection.file.FileRequest;
+import message.FileIOResult;
 
 public class CentralServer extends Entity{
     private static final Logger logger = LoggerFactory.getLogger(CentralServer.class);
@@ -28,7 +29,7 @@ public class CentralServer extends Entity{
 
     public CentralServer() {
         setServerId(getCentralServerInfo().getServerId());
-        centLockManager = new CentralizedLockManager(getHomeDir());
+        centLockManager = new CentralizedLockManager(getHomeDir(), getQueue());
 
         startServerProcess();
     }
@@ -83,6 +84,22 @@ public class CentralServer extends Entity{
 
                 msgr.sendSocket(new CentralServerHandshake(machineCount, getServers()));
                 break;
+            case FILE_IO_RESULT:
+                logger.info("Received file IO result");
+                ServerMessage serverMsg = ((FileIOResult)msg.getData()).getServerMessage();
+
+                if (serverMsg != null) {
+                    CriticalSectionRequest csRequest = (CriticalSectionRequest)serverMsg.getData();
+                    FileRequest fileRequest = (FileRequest)csRequest.getCritSect();
+                    FileInfo fileInfo = fileRequest.getFileInfo();
+        
+                    if (fileRequest.getRequestType()==RequestType.READ) {
+                        readTimer+=System.nanoTime();
+                    } else {
+                        writeTimer+=System.nanoTime();
+                    }
+                    serverMsg.reply(new CriticalSectionResponse(MessageType.CS_EXIT, fileInfo));
+                }
             default:
                 break;
         }
@@ -102,19 +119,7 @@ public class CentralServer extends Entity{
     }
 
     public boolean update() {
-        ServerMessage msg = centLockManager.handleRequest();
-        if (msg != null) {
-            CriticalSectionRequest csRequest = (CriticalSectionRequest)msg.getData();
-            FileRequest fileRequest = (FileRequest)csRequest.getCritSect();
-            FileInfo fileInfo = fileRequest.getFileInfo();
-
-            if (fileRequest.getRequestType()==RequestType.READ) {
-                readTimer+=System.nanoTime();
-            } else {
-                writeTimer+=System.nanoTime();
-            }
-            msg.reply(new CriticalSectionResponse(MessageType.CS_EXIT, fileInfo));
-        }
+        centLockManager.handleRequest();
         
         return false;
     }

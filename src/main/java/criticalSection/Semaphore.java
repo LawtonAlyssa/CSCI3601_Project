@@ -7,7 +7,7 @@ import java.util.LinkedList;
 public class Semaphore {
     private static final Logger logger = LoggerFactory.getLogger(Semaphore.class);
     private int value = 0;
-    private LinkedList<Thread> waitingQueue;
+    private LinkedList<Thread> waitingQueue = new LinkedList<>();
     
     public Semaphore(int value) {
         this.value = value;
@@ -26,9 +26,13 @@ public class Semaphore {
         }
     }
 
+    
+
     private void block() {
         try {
-            wait();
+            // synchronized(this) {
+            //     wait();
+            // }
         } catch (Exception e) {
             logger.error("Could not block semaphore", e);
         }
@@ -44,6 +48,8 @@ public class Semaphore {
     }
 
     private void wakeUp(Thread p) {
-        p.notify();
+        // synchronized(this) {
+        //     p.notify();
+        // }
     }
 }
